@@ -1,0 +1,231 @@
+# combat_system.py
+import random
+import time
+from systems.hero_system import Hero
+from game_data.monsters_data import MONSTER_BASE_STATS, BOSS_STATS, MONSTER_SPAWN_CHANCES, MONSTER_COUNT_BY_FLOOR
+from game_data.bosses_data import BOSS_ABILITIES
+
+class Monster:
+    def __init__(self, name, level, monster_type="normal"):
+        self.name = name
+        self.level = level
+        self.monster_type = monster_type
+        self._calculate_stats()
+        self.health_current = self.health_max
+        self.is_alive = True
+        self.monster_id = f"{name}_{level}_{random.randint(1000,9999)}"
+
+    def _calculate_stats(self):
+        """Рассчитывает статы на основе типа и уровня"""
+        if self.monster_type == "boss" and self.name in BOSS_STATS:
+            boss_data = BOSS_STATS[self.name]
+            base_stats = MONSTER_BASE_STATS.get("Орк", {})  # используем орка как базу для боссов
+            
+            self.health_max = int((base_stats.get("health_per_level", 10) * self.level) * boss_data["health_multiplier"])
+            self.attack = int((base_stats.get("attack_per_level", 3) * self.level) * boss_data["attack_multiplier"])
+            self.defense = int((base_stats.get("defense_per_level", 1) * self.level) * boss_data["defense_multiplier"])
+            self.exp_value = int((base_stats.get("exp_per_level", 15) * self.level) * boss_data["exp_multiplier"])
+        else:
+            monster_data = MONSTER_BASE_STATS.get(self.name, {})
+            self.health_max = monster_data.get("health_per_level", 8) * self.level
+            self.attack = monster_data.get("attack_per_level", 2) * self.level
+            self.defense = monster_data.get("defense_per_level", 1) * self.level
+            self.exp_value = monster_data.get("exp_per_level", 10) * self.level
+
+    def take_damage(self, damage):
+        actual_damage = max(1, damage - self.defense)
+        self.health_current -= actual_damage
+        
+        if self.health_current <= 0:
+            self.is_alive = False
+            return f"{self.name} повержен!"
+        
+        return f"{self.name} получает {actual_damage} урона. Осталось {self.health_current} HP."
+
+    def attack_target(self, target: Hero):
+        damage_dealt = random.randint(self.attack // 2, self.attack)
+        result = target.take_damage(damage_dealt)
+        time.sleep(0.3)
+        return result
+
+    def use_special_ability(self, heroes):
+        """Использование специальной способности (для боссов)"""
+        if self.monster_type != "boss" or self.name not in BOSS_ABILITIES:
+            return None
+            
+        abilities = BOSS_ABILITIES[self.name]
+        for ability_name, ability_data in abilities.items():
+            if random.random() < ability_data["chance"]:
+                return self._execute_ability(ability_name, ability_data, heroes)
+        return None
+
+    def _execute_ability(self, ability_name, ability_data, heroes):
+        """Выполняет специальную способность"""
+        if ability_name == "Огненное дыхание":
+            damage = int(self.attack * ability_data["damage_multiplier"])
+            results = []
+            for hero in heroes:
+                if hero.is_alive:
+                    result = hero.take_damage(damage // 2)  # полный урон по всем
+                    results.append(f"{hero.name}: {result}")
+            return f"{self.name} использует {ability_name}!\n" + "\n".join(results)
+        
+        return f"{self.name} использует {ability_name}!"
+
+    def to_dict(self):
+        return {
+            'name': self.name,
+            'level': self.level,
+            'monster_type': self.monster_type,
+            'health_max': self.health_max,
+            'health_current': self.health_current,
+            'attack': self.attack,
+            'defense': self.defense,
+            'is_alive': self.is_alive,
+            'monster_id': self.monster_id
+        }
+
+    @classmethod
+    def from_dict(cls, data):
+        monster = cls(data['name'], data['level'], data.get('monster_type', 'normal'))
+        monster.health_max = data['health_max']
+        monster.health_current = data['health_current']
+        monster.attack = data['attack']
+        monster.defense = data['defense']
+        monster.is_alive = data['is_alive']
+        return monster
+
+class Combat:
+    def __init__(self, hero_party, tower_level, game_state):
+        self.heroes = hero_party
+        self.tower_level = tower_level
+        self.game_state = game_state
+        self.monsters = self._get_or_generate_monsters()
+        self.combat_log = []
+        self.total_exp_earned = 0
+
+    def _get_or_generate_monsters(self):
+        if self.tower_level in self.game_state["tower_monsters"]:
+            monsters_data = self.game_state["tower_monsters"][self.tower_level]
+            return [Monster.from_dict(data) for data in monsters_data]
+        else:
+            monsters = self._generate_monsters()
+            self.game_state["tower_monsters"][self.tower_level] = [m.to_dict() for m in monsters]
+            return monsters
+
+    def _generate_monsters(self):
+        """Генерация сбалансированной группы монстров"""
+        if self.tower_level % 5 == 0:
+            # Босс-этаж
+            boss_names = [name for name, data in BOSS_STATS.items() if self.tower_level >= data["min_level"]]
+            if not boss_names:
+                boss_names = list(BOSS_STATS.keys())
+            boss_name = random.choice(boss_names)
+            boss_level = self.tower_level + 2
+            return [Monster(boss_name, boss_level, "boss")]
+        
+        else:
+            # Обычный этаж
+            min_count, max_count = MONSTER_COUNT_BY_FLOOR.get(self.tower_level, (1, 3))
+            monster_count = random.randint(min_count, max_count)
+            
+            # Выбираем типы монстров для этого этажа
+            floor_chances = {}
+            for floor, chances in MONSTER_SPAWN_CHANCES.items():
+                if self.tower_level <= floor:
+                    floor_chances = chances
+                    break
+            else:
+                floor_chances = MONSTER_SPAWN_CHANCES[max(MONSTER_SPAWN_CHANCES.keys())]
+            
+            monsters = []
+            for _ in range(monster_count):
+                monster_type = self._choose_monster_type(floor_chances)
+                level = max(1, self.tower_level + random.randint(-1, 1))
+                monsters.append(Monster(monster_type, level))
+            
+            return monsters
+
+    def _choose_monster_type(self, chances_dict):
+        total = sum(chances_dict.values())
+        r = random.randint(1, total)
+        current = 0
+        for monster_type, chance in chances_dict.items():
+            current += chance
+            if r <= current:
+                return monster_type
+        return list(chances_dict.keys())[0]
+
+    def start_combat(self):
+        """Начинаем сбалансированный бой"""
+        print("=" * 50)
+        print(f"БАШНЯ ИСПЫТАНИЙ - ЭТАЖ {self.tower_level}")
+        print("=" * 50)
+        time.sleep(1)
+        
+        # Показываем силы сторон
+        hero_power = sum(h.attack + h.defense for h in self.heroes if h.is_alive)
+        monster_power = sum(m.attack + m.defense for m in self.monsters if m.is_alive)
+        
+        print(f"Сила отряда: {hero_power}")
+        print(f"Сила монстров: {monster_power}")
+        print("=" * 50)
+        
+        for monster in self.monsters:
+            print(f"- {monster.name} (Ур. {monster.level}) | ❤️{monster.health_max} ⚔️{monster.attack} 🛡️{monster.defense}")
+        
+        time.sleep(1.5)
+        
+        round_number = 1
+        
+        while any(h.is_alive for h in self.heroes) and any(m.is_alive for m in self.monsters):
+            print(f"\n--- РАУНД {round_number} ---")
+            time.sleep(0.5)
+            
+            # Ход героев
+            for hero in self.heroes:
+                if hero.is_alive and any(m.is_alive for m in self.monsters):
+                    alive_monsters = [m for m in self.monsters if m.is_alive]
+                    target = random.choice(alive_monsters)
+                    action_text = hero.decide_action(target)
+                    print(action_text)
+                    
+                    # Проверяем, был ли монстр убит и начисляем опыт
+                    if not target.is_alive:
+                        self.total_exp_earned += target.exp_value
+                    
+                    time.sleep(0.5)
+            
+            if not any(m.is_alive for m in self.monsters):
+                break
+                
+            # Ход монстров
+            for monster in self.monsters:
+                if monster.is_alive and any(h.is_alive for h in self.heroes):
+                    # Боссы могут использовать способности
+                    if monster.monster_type == "boss" and random.random() < 0.3:
+                        ability_result = monster.use_special_ability(self.heroes)
+                        if ability_result:
+                            print(ability_result)
+                            time.sleep(0.8)
+                            continue
+                    
+                    alive_heroes = [h for h in self.heroes if h.is_alive]
+                    if alive_heroes:
+                        target = random.choice(alive_heroes)
+                        print(f"{monster.name} атакует {target.name}!")
+                        time.sleep(0.3)
+                        result = monster.attack_target(target)
+                        print(result)
+                        time.sleep(0.3)
+
+            round_number += 1
+            if round_number > 15:  # увеличен лимит раундов
+                print("Бой затянулся! Обе стороны истощены...")
+                break
+
+        victory = any(h.is_alive for h in self.heroes)
+        
+        self.game_state["tower_monsters"][self.tower_level] = [m.to_dict() for m in self.monsters]
+        
+        return victory, self.combat_log, self.total_exp_earned
