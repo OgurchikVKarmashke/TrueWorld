@@ -12,9 +12,9 @@ https://mangabuddy.com/pick-me-up
     pip install -r requirements.txt
     ```
 4. Launch the game:
-* * * Using the command line:**
+**Using the command line:**
         ```bash
         python main_loop.py
         ```
-Via the executable file (Windows):
+**Via the executable file (Windows):**
 Just run ' TRUEWORLD.bat`List of exceptions
