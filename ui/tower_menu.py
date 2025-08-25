@@ -1,13 +1,15 @@
 # tower_menu.py
-from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
-from ui.tower_system import send_to_tower
+# ui/tower_menu.py
+from ui.ui_utils import loading_screen, press_enter_to_continue
+from ui.tower_ui import display_tower_header
+from systems.tower_system import tower_management
 
 def tower_menu(game_state):
     """
     Меню башни испытаний
     """
     while True:
-        print_header("🏰 Башня испытаний")
+        display_tower_header("🏰 Башня испытаний")
         print("Выберите локацию для исследования:")
         print()
         print("1. 🏰 Башня испытаний (основной прогресс)")
@@ -24,7 +26,7 @@ def tower_menu(game_state):
         if choice == 0:
             break
         elif choice == 1:
-            send_to_tower(game_state)
+            tower_management(game_state)
         else:
             loading_screen(1, "🚫 Локация недоступна")
             print("Эта локация будет доступна в будущих обновлениях!")

@@ -158,29 +158,41 @@ class Combat:
 
     def start_combat(self):
         """Начинаем сбалансированный бой"""
-        print("=" * 50)
-        print(f"БАШНЯ ИСПЫТАНИЙ - ЭТАЖ {self.tower_level}")
-        print("=" * 50)
-        time.sleep(1)
+        battle_intro = [
+            "=" * 50,
+            f"БАШНЯ ИСПЫТАНИЙ - ЭТАЖ {self.tower_level}",
+            "=" * 50
+        ]
         
         # Показываем силы сторон
         hero_power = sum(h.attack + h.defense for h in self.heroes if h.is_alive)
         monster_power = sum(m.attack + m.defense for m in self.monsters if m.is_alive)
         
-        print(f"Сила отряда: {hero_power}")
-        print(f"Сила монстров: {monster_power}")
-        print("=" * 50)
+        battle_intro.extend([
+            f"Сила отряда: {hero_power}",
+            f"Сила монстров: {monster_power}",
+            "=" * 50
+        ])
         
         for monster in self.monsters:
-            print(f"- {monster.name} (Ур. {monster.level}) | ❤️{monster.health_max} ⚔️{monster.attack} 🛡️{monster.defense}")
+            battle_intro.append(f"- {monster.name} (Ур. {monster.level}) | ❤️{monster.health_max} ⚔️{monster.attack} 🛡️{monster.defense}")
         
-        time.sleep(1.5)
+        # Добавляем вводную часть в лог
+        self.combat_log.extend(battle_intro)
+        
+        # Показываем вводную информацию
+        for line in battle_intro:
+            print(line)
+        
+        time.sleep(1.5)  # Пауза перед началом боя
         
         round_number = 1
         
         while any(h.is_alive for h in self.heroes) and any(m.is_alive for m in self.monsters):
-            print(f"\n--- РАУНД {round_number} ---")
-            time.sleep(0.5)
+            round_header = f"\n--- РАУНД {round_number} ---"
+            print(round_header)
+            self.combat_log.append(round_header)
+            time.sleep(0.6)  # Комфортная пауза
             
             # Ход героев
             for hero in self.heroes:
@@ -189,12 +201,16 @@ class Combat:
                     target = random.choice(alive_monsters)
                     action_text = hero.decide_action(target)
                     print(action_text)
+                    self.combat_log.append(action_text)
                     
                     # Проверяем, был ли монстр убит и начисляем опыт
                     if not target.is_alive:
                         self.total_exp_earned += target.exp_value
+                        kill_message = f"{target.name} повержен! +{target.exp_value} опыта"
+                        print(kill_message)
+                        self.combat_log.append(kill_message)
                     
-                    time.sleep(0.5)
+                    time.sleep(0.6)  # Комфортная пауза между действиями
             
             if not any(m.is_alive for m in self.monsters):
                 break
@@ -207,25 +223,47 @@ class Combat:
                         ability_result = monster.use_special_ability(self.heroes)
                         if ability_result:
                             print(ability_result)
-                            time.sleep(0.8)
+                            self.combat_log.append(ability_result)
+                            time.sleep(0.8)  # Немного дольше для способностей
                             continue
                     
                     alive_heroes = [h for h in self.heroes if h.is_alive]
                     if alive_heroes:
                         target = random.choice(alive_heroes)
-                        print(f"{monster.name} атакует {target.name}!")
-                        time.sleep(0.3)
+                        attack_message = f"{monster.name} атакует {target.name}!"
+                        print(attack_message)
+                        self.combat_log.append(attack_message)
+                        time.sleep(0.4)
+                        
                         result = monster.attack_target(target)
                         print(result)
-                        time.sleep(0.3)
+                        self.combat_log.append(result)
+                        time.sleep(0.6)
 
             round_number += 1
-            if round_number > 15:  # увеличен лимит раундов
-                print("Бой затянулся! Обе стороны истощены...")
+            if round_number > 15:
+                timeout_message = "Бой затянулся! Обе стороны истощены..."
+                print(timeout_message)
+                self.combat_log.append(timeout_message)
                 break
 
         victory = any(h.is_alive for h in self.heroes)
         
+        # Очищаем группы от мертвых героев
+        self.cleanup_party_system()
+        
+        # Добавляем результат боя в лог
+        result_message = "\n🎉 ПОБЕДА!" if victory else "\n💥 ПОРАЖЕНИЕ"
+        print(result_message)
+        self.combat_log.append(result_message)
+        
         self.game_state["tower_monsters"][self.tower_level] = [m.to_dict() for m in self.monsters]
         
         return victory, self.combat_log, self.total_exp_earned
+
+    def cleanup_party_system(self):
+        """Очищает систему групп от мертвых героев после боя"""
+        if "party_system" in self.game_state:
+            from systems.party_system import PartySystem
+            party_system = PartySystem(self.game_state)
+            party_system.cleanup_dead_heroes()

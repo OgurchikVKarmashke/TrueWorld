@@ -3,7 +3,7 @@ from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 from systems.summon_system import summon_hero
 from ui.building_manager import manage_buildings
 from ui.research_manager import manage_research
-from ui.synthesis_room import manage_synthesis
+from ui.synthesis_room_menu import manage_synthesis
 
 def buildings_menu(game_state):
     """

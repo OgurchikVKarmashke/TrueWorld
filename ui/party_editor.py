@@ -1,13 +1,16 @@
 #party_editor.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
+from systems.party_system import PartySystem
 
 def manage_parties(game_state):
     """
     Редактор боевых групп
     """
-    from systems.party_system import PartySystem
     party_system = PartySystem(game_state)
     
+    # Очищаем группы от мертвых героев при входе
+    party_system.cleanup_dead_heroes()
+
     while True:
         print_header("⚔️ Управление боевыми группами")
         print(f"🏰 Текущий этаж: {game_state['tower_level']}")

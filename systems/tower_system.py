@@ -1,9 +1,15 @@
 # tower_system.py
+# systems/tower_system.py
 from systems.hero_system import Hero
-from ui.ui_utils import print_header, loading_screen, press_enter_to_continue
 from systems.combat_system import Combat
 from systems.party_system import PartySystem
 from game_data.monsters_data import MONSTER_SPAWN_CHANCES
+from ui.tower_ui import (
+    show_tower_management_menu, show_party_selection, show_expedition_preview,
+    show_victory_screen, show_defeat_screen, show_tower_progress,
+    show_healing_confirmation
+)
+from ui.ui_utils import loading_screen, press_enter_to_continue
 import random
 
 def choose_parties_for_floor(game_state, required_groups=1):
@@ -11,16 +17,7 @@ def choose_parties_for_floor(game_state, required_groups=1):
     available_parties = list(party_system.parties.items())
 
     while True:
-        print_header("⚔️ Выбор боевых групп для башни")
-
-        for i, (party_id, party_data) in enumerate(available_parties, 1):
-            heroes = party_system.get_party_heroes(party_id)
-            hero_names = ", ".join([h.name for h in heroes]) or "— пусто —"
-            print(f"{i}. {party_data['name']} → [{hero_names}]")
-
-        print(f"\nЭтаж требует групп: {required_groups}")
-        print("0. ↩️ Вернуться назад")
-        choice = input("Введите номера групп через запятую: ").strip()
+        choice = show_party_selection(available_parties, required_groups, game_state)  # Добавили game_state
 
         if choice in ("0", "b", "B"):
             return None, None
@@ -51,12 +48,8 @@ def choose_parties_for_floor(game_state, required_groups=1):
             return chosen_parties, chosen_party_ids
 
 def send_to_tower(game_state):
-    print_header("🏰 Башня испытаний")
     current_floor = game_state["tower_level"]
-
-    required_groups = 1
-    if current_floor % 10 == 0:
-        required_groups = 2
+    required_groups = 2 if current_floor % 10 == 0 else 1
 
     selected_parties, selected_party_ids = choose_parties_for_floor(game_state, required_groups)
     if selected_parties is None:
@@ -72,28 +65,8 @@ def send_to_tower(game_state):
         press_enter_to_continue()
         return
 
-    print(f"📊 Текущий этаж: {current_floor}")
-    print("🎯 Состав отряда:")
-    print("-" * 30)
-
-    for i, hero in enumerate(active_party_heroes, 1):
-        status = "✅ Готов" if hero.is_alive else "❌ Неспособен"
-        star_symbol = "★" * hero.star
-        print(f"{i}. {hero.name} {star_symbol}")
-        print(f"   📈 Ур. {hero.level} | {status}")
-        print(f"   ❤️ Здоровье: {hero.health_current}/{hero.health_max}")
-    
-    print("\n1. ⚔️ Начать вылазку")
-    print("2. ↩️ Вернуться в командный центр")
-    print()
-
-    try:
-        choice = int(input("Выбор: "))
-    except ValueError:
-        press_enter_to_continue()
-        return
-    
-    if choice == 2:
+    choice = show_expedition_preview(active_party_heroes, current_floor)
+    if choice is None or choice == 0:
         return
     
     loading_screen(2, "Подготовка отряда")
@@ -104,7 +77,7 @@ def send_to_tower(game_state):
     # Сохраняем состояние игры после боя
     game_state["save_system"].save_game(game_state)
     
-    if victory:
+    if victory: 
         reward = current_floor * 25
         game_state["wallet"].add_gold(reward)
         game_state["tower_level"] += 1
@@ -129,47 +102,34 @@ def send_to_tower(game_state):
             party_heroes = party_system.get_party_heroes(party_id)
             party_system.parties[party_id]["heroes"] = [id(h) for h in party_heroes if h.is_alive]
 
-        print(f"\n🎉 ПОБЕДА!")
-        print(f"💰 Награда: {reward} золота")
-        print(f"📈 Получено опыта: {total_exp}")
-        
-        if dead_heroes:
-            print("💀 Погибшие в бою:")
-            for hero in dead_heroes:
-                print(f"- {hero.name}")
-        print(f"🏆 Доступен этаж {game_state['tower_level']}")
+        # Показываем экран победы
+        press_enter_to_continue()
+        show_victory_screen(reward, total_exp, game_state["tower_level"], dead_heroes)
         
     else:
-        dead_heroes = [h for h in active_party_heroes if not h.is_alive]
-        living_heroes = [h for h in active_party_heroes if h.is_alive]
-        
+        dead_heroes = [h for h in active_party_heroes if not h.is_alive]  # Исправлен отступ
+        living_heroes = [h for h in active_party_heroes if h.is_alive]  # Исправлен отступ
+    
         party_system = PartySystem(game_state)
         for party_id in selected_party_ids:
             # Обновляем состав группы
             party_heroes = party_system.get_party_heroes(party_id)
             party_system.parties[party_id]["heroes"] = [id(h) for h in party_heroes if h.is_alive]
 
-        print("\n💥 ПОРАЖЕНИЕ")
-        print("💀 Погибшие:")
-        for hero in dead_heroes:
-            print(f"- {hero.name} (Ур. {hero.level})")
-        
         game_state["tower_level"] = max(1, current_floor - 1)
-        print(f"🔙 Отступление к этажу {game_state['tower_level']}")
-    
+        press_enter_to_continue()
+        show_defeat_screen(dead_heroes, game_state["tower_level"])
+        
     # Сохраняем окончательное состояние
     game_state["save_system"].save_game(game_state)
-    press_enter_to_continue()
-    
     return victory
 
-
 def show_floor_monster_info(floor_level):
-    """Показывает информацию о монстрах на указанном этаже"""
+    """Получить информацию о монстрах на указанном этаже"""
     from systems.combat_system import Monster
     from game_data.monsters_data import MONSTER_BASE_STATS, BOSS_STATS
     
-    print(f"\n📊 Монстры на этаже {floor_level}:")
+    info = f"\n📊 Монстры на этаже {floor_level}:\n"
     
     if floor_level % 5 == 0:
         # Босс-этаж
@@ -182,19 +142,19 @@ def show_floor_monster_info(floor_level):
             boss_name = random.choice(possible_bosses)
             boss_level = floor_level + 2
             monster = Monster(boss_name, boss_level, "boss")
-            print(f"👑 БОСС: {boss_name} (Ур. {boss_level})")
-            print(f"   ❤️ Здоровье: {monster.health_max}")
-            print(f"   ⚔️ Атака: {monster.attack}")
-            print(f"   🛡️ Защита: {monster.defense}")
+            info += f"👑 БОСС: {boss_name} (Ур. {boss_level})\n"
+            info += f"   ❤️ Здоровье: {monster.health_max}\n"
+            info += f"   ⚔️ Атака: {monster.attack}\n"
+            info += f"   🛡️ Защита: {monster.defense}\n"
             
-            # Показываем способности босса
+            # Способности босса
             from game_data.bosses_data import BOSS_ABILITIES
             if boss_name in BOSS_ABILITIES:
-                print(f"   ✨ Способности:")
+                info += f"   ✨ Способности:\n"
                 for ability_name, ability_data in BOSS_ABILITIES[boss_name].items():
-                    print(f"      - {ability_name} (шанс: {ability_data['chance']*100}%)")
+                    info += f"      - {ability_name} (шанс: {ability_data['chance']*100}%)\n"
         else:
-            print("❌ Информация о боссах недоступна")
+            info += "❌ Информация о боссах недоступна\n"
     else:
         # Обычный этаж
         floor_chances = {}
@@ -206,7 +166,7 @@ def show_floor_monster_info(floor_level):
         if not floor_chances:
             floor_chances = MONSTER_SPAWN_CHANCES[max(MONSTER_SPAWN_CHANCES.keys())]
         
-        print("Возможные монстры:")
+        info += "Возможные монстры:\n"
         for monster_type, chance in floor_chances.items():
             monster_data = MONSTER_BASE_STATS.get(monster_type, {})
             level = max(1, floor_level + random.randint(-1, 1))
@@ -214,43 +174,14 @@ def show_floor_monster_info(floor_level):
             attack = monster_data.get("attack_per_level", 2) * level
             defense = monster_data.get("defense_per_level", 1) * level
             
-            print(f"  {monster_type}: ❤️{health} ⚔️{attack} 🛡️{defense} (шанс: {chance})")
+            info += f"  {monster_type}: ❤️{health} ⚔️{attack} 🛡️{defense} (шанс: {chance})\n"
+    
+    return info
 
 def view_tower_progress(game_state):
     """Просмотр прогресса в башне"""
-    print_header("🏰 Прогресс в Башне Испытаний")
-    
-    current_floor = game_state["tower_level"]
-    max_floor_reached = game_state.get("max_tower_floor", current_floor)
-    
-    print(f"📊 Текущий этаж: {current_floor}")
-    print(f"🏆 Максимальный достигнутый: {max_floor_reached}")
-    print(f"💰 Награда за следующий этаж: {current_floor * 25} золота")
-    
-    # Показываем информацию о монстрах на текущем этаже
-    show_floor_monster_info(current_floor)
-    
-    # Показываем информацию о следующих этапах
-    if current_floor % 5 == 0:
-        next_boss_floor = current_floor + 5
-        print(f"\n⚠️  Следующий босс на этаже: {next_boss_floor}")
-    elif (current_floor + 1) % 5 == 0:
-        print(f"\n⚡ Следующий этаж: БОСС-БОЙ!")
-    
-    if current_floor % 10 == 0:
-        next_multi_party_floor = current_floor + 10
-        print(f"\n👥 На этаже {next_multi_party_floor} потребуется 2 группы")
-    
-    print("\nОсобые этажи:")
-    for floor in [5, 10, 15, 20, 25, 30, 35, 40, 45, 50]:
-        if floor <= max_floor_reached + 5:  # Показываем только ближайшие этажи
-            status = "✅ Пройден" if current_floor > floor else "🔒 Заблокирован" if current_floor < floor else "🎯 Текущий"
-            if floor % 5 == 0:
-                print(f"  {floor}F - Босс - {status}")
-            else:
-                print(f"  {floor}F - Обычный - {status}")
-    
-    press_enter_to_continue()
+    floor_info = show_floor_monster_info(game_state["tower_level"])
+    show_tower_progress(game_state, floor_info)
 
 def heal_all_heroes(game_state):
     """Лечение всех героев за золото"""
@@ -270,18 +201,10 @@ def heal_all_heroes(game_state):
         press_enter_to_continue()
         return
     
-    print(f"💊 Лечение {len(wounded_heroes)} героев: {healing_cost} золота")
-    print("1. ✅ Подтвердить лечение")
-    print("2. ❌ Отмена")
-    
-    try:
-        confirm = int(input("Выбор: "))
-    except ValueError:
-        press_enter_to_continue()
-        return
+    confirm = show_healing_confirmation(len(wounded_heroes), healing_cost)
     
     if confirm == 1:
-        wallet.spend_gold(healing_cost)
+        wallet.subtract_gold(healing_cost)  # Исправлено с spend_gold на subtract_gold
         for hero in wounded_heroes:
             hero.health_current = hero.health_max
             hero.mana_current = hero.mana_max
@@ -295,35 +218,23 @@ def heal_all_heroes(game_state):
 def tower_management(game_state):
     """Главное меню управления башней"""
     while True:
-        print_header("🏰 Управление Башней Испытаний")
+        choice = show_tower_management_menu(game_state)
         
-        current_floor = game_state["tower_level"]
-        heroes_available = sum(1 for hero in game_state["heroes"] if hero.is_alive)
-        
-        print(f"📊 Текущий этаж: {current_floor}")
-        print(f"🎯 Доступных героев: {heroes_available}")
-        print(f"💰 Золото: {game_state['wallet'].gold}")
-        
-        print("\n1. ⚔️  Отправить в башню")
-        print("2. 📈 Просмотреть прогресс")
-        print("3. 🏥 Лечить всех героев (100 золота)")
-        print("4. ↩️ Вернуться в главное меню")
-        print()
-        
-        try:
-            choice = int(input("Выбор: "))
-        except ValueError:
+        if choice is None:
             print("❌ Неверный ввод!")
             press_enter_to_continue()
             continue
         
         if choice == 1:
-            send_to_tower(game_state)
+            result = send_to_tower(game_state)
+            # Если была победа, выходим из цикла чтобы не показывать меню повторно
+            if result:
+                break
         elif choice == 2:
             view_tower_progress(game_state)
         elif choice == 3:
             heal_all_heroes(game_state)
-        elif choice == 4:
+        elif choice == 0:  # Изменили 4 на 0
             break
         else:
             print("❌ Неверный выбор!")

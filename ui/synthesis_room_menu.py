@@ -1,10 +1,11 @@
-#game_data.synthesis_room.py
+# synthesis_room_menu.py
+# ui.synthesis_room_menu.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
-import random
+from systems.synthesis_room_system import synthesize_heroes, get_available_heroes
 
 def manage_synthesis(game_state):
     """
-    Улучшенная комната синтеза
+    Улучшенная комната синтеза - визуальная часть
     """
     heroes = game_state["heroes"]
     if len(heroes) < 2:
@@ -14,14 +15,17 @@ def manage_synthesis(game_state):
         return
 
     while True:
-        print_header("⚗️ КОМНАТА СИНТЕЗА")
+        print_header("⚗️ КОМНАТА СИНТЕЗA")
         print("Выберите основного героя для усиления:")
         print("═" * 40)
         
-        for i, hero in enumerate(heroes, 1):
+        # Кнопка 0 - отмена
+        print("0. ↩️ Назад")
+        
+        # Герои начинаются с 2
+        for i, hero in enumerate(heroes, 2):
             star_symbol = "★" * hero.star
             print(f"{i}. {hero.name} {star_symbol} (Ур. {hero.level})")
-        print("0. ↩️ Назад")
         print()
         
         try:
@@ -31,8 +35,8 @@ def manage_synthesis(game_state):
             
         if choice == 0:
             return
-        if 1 <= choice <= len(heroes):
-            base_hero = heroes[choice - 1]
+        if 2 <= choice <= len(heroes) + 1:
+            base_hero = heroes[choice - 2]  # Корректируем индекс
             break
         else:
             print("❌ Неверный выбор!")
@@ -46,35 +50,39 @@ def manage_synthesis(game_state):
         print("Выберите героев для синтеза (через запятую):")
         print("═" * 40)
         
-        available_heroes = [h for h in heroes if h != base_hero and h not in sacrifices]
+        available_heroes = get_available_heroes(heroes, base_hero, sacrifices)
         
         if not available_heroes:
             print("❌ Нет доступных героев для синтеза!")
             press_enter_to_continue()
             break
             
-        for i, hero in enumerate(available_heroes, 1):
+        # Кнопка 0 - отмена, 1 - завершить
+        print("0. ↩️ Отмена")
+        print("1. ✅ Завершить выбор")
+        
+        # Герои начинаются с 2
+        for i, hero in enumerate(available_heroes, 2):
             star_symbol = "★" * hero.star
             print(f"{i}. {hero.name} {star_symbol} (Ур. {hero.level})")
-        
-        print("9. ✅ Завершить выбор")
-        print("0. ↩️ Отмена")
         print()
         
         try:
             choice = input("🎯 Выбор героев: ")
             if choice == "0":
                 return
-            elif choice == "9":
+            elif choice == "1":
                 break
             else:
                 indices = [int(idx.strip()) for idx in choice.split(",") if idx.strip().isdigit()]
                 for idx in indices:
-                    if 1 <= idx <= len(available_heroes):
-                        sacrifice = available_heroes[idx - 1]
-                        if sacrifice not in sacrifices:
-                            sacrifices.append(sacrifice)
-                            print(f"✅ Добавлен: {sacrifice.name}")
+                    if idx >= 2:  # Только герои (начиная с 2)
+                        adjusted_idx = idx - 2  # Корректируем индекс
+                        if 0 <= adjusted_idx < len(available_heroes):
+                            sacrifice = available_heroes[adjusted_idx]
+                            if sacrifice not in sacrifices:
+                                sacrifices.append(sacrifice)
+                                print(f"✅ Добавлен: {sacrifice.name}")
         except ValueError:
             continue
     
@@ -83,7 +91,20 @@ def manage_synthesis(game_state):
         press_enter_to_continue()
         return
     
-    # Процесс синтеза
+    # Показываем предварительную информацию
+    show_synthesis_preview(base_hero, sacrifices)
+    
+    # Подтверждение
+    if confirm_synthesis():
+        loading_screen(2, "🌀 Процесс синтеза")
+        # Выполняем синтез
+        result_message, stat_improved = synthesize_heroes(game_state, base_hero, sacrifices)
+        show_synthesis_result(result_message, stat_improved, len(sacrifices))
+    
+    press_enter_to_continue()
+
+def show_synthesis_preview(base_hero, sacrifices):
+    """Показывает предпросмотр синтеза"""
     print_header("⚗️ ПРОЦЕСС СИНТЕЗА")
     print(f"Основной герой: {base_hero.name}")
     print("Жертвы:")
@@ -98,55 +119,23 @@ def manage_synthesis(game_state):
     print(f"📈 Получено опыта: {total_exp}")
     print(f"🎲 Шанс усиления характеристик: {stat_bonus_chance*100:.1f}%")
     print()
-    
-    # Единая система подтверждения как везде
+
+def confirm_synthesis():
+    """Запрос подтверждения синтеза"""
     print("1. ✅ Подтвердить синтез")
-    print("2. ❌ Отменить")
+    print("0. ❌ Отменить")
     print()
     
     try:
         confirm = int(input("🎯 Ваш выбор: "))
+        return confirm == 1
     except ValueError:
         print("❌ Синтез отменён")
-        press_enter_to_continue()
-        return
-    
-    if confirm != 1:
-        print("❌ Синтез отменён")
-        press_enter_to_continue()
-        return
-    
-    loading_screen(2, "🌀 Процесс синтеза")
-    
-    # Применяем опыт
-    result = base_hero.add_experience(total_exp)
-    if result:
-        print(result)
-    
-    # Проверяем усиление характеристик
-    stat_improved = False
-    if random.random() < stat_bonus_chance:
-        stats = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
-        chosen_stat = random.choice(stats)
-        current_value = getattr(base_hero, chosen_stat)
-        setattr(base_hero, chosen_stat, current_value + 1)
-        
-        stat_names = {
-            'strength': 'Сила', 'dexterity': 'Ловкость', 
-            'constitution': 'Выносливость', 'intelligence': 'Интеллект',
-            'wisdom': 'Мудрость', 'charisma': 'Харизма'
-        }
-        
-        print(f"✨ {base_hero.name} получает +1 к {stat_names[chosen_stat]}!")
-        stat_improved = True
-    
-    # Удаляем жертвенных героев
-    for hero in sacrifices:
-        if hero in game_state["heroes"]:
-            game_state["heroes"].remove(hero)
-    
-    print(f"✅ Синтез завершён! Удалено героев: {len(sacrifices)}")
+        return False
+
+def show_synthesis_result(result_message, stat_improved, sacrifices_count):
+    """Показывает результат синтеза"""
+    print(result_message)
+    print(f"✅ Синтез завершён! Удалено героев: {sacrifices_count}")
     if stat_improved:
         print("🎉 Получено дополнительное усиление характеристики!")
-    
-    press_enter_to_continue()

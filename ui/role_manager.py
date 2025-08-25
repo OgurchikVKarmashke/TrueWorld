@@ -1,6 +1,5 @@
 #role_manager.py
 from ui.ui_utils import print_header, press_enter_to_continue
-
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 
 def manage_roles(game_state):

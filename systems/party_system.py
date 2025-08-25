@@ -5,8 +5,22 @@ class PartySystem:
         self.parties = game_state["party_system"]["parties"]
         self.max_parties = game_state["party_system"]["max_parties"]
     
+    def cleanup_dead_heroes(self):
+        """Очищает все группы от мертвых или удаленных героев"""
+        alive_hero_ids = {id(hero) for hero in self.game_state["heroes"] if hero.is_alive}
+        
+        for party_id, party_data in self.parties.items():
+            # Оставляем только живых героев, которые существуют в game_state
+            party_data["heroes"] = [
+                hero_id for hero_id in party_data["heroes"] 
+                if hero_id in alive_hero_ids
+            ]
+    
     def is_hero_available(self, hero, current_party_id=None):
         """Проверяет, доступен ли герой для добавления в группы"""
+        # Сначала очищаем мертвых героев
+        self.cleanup_dead_heroes()
+        
         # Проверяем, не находится ли герой в других группах
         for pid, pdata in self.parties.items():
             if pid != current_party_id and id(hero) in pdata["heroes"]:
