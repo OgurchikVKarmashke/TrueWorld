@@ -7,7 +7,7 @@ from game_data.save_system import SaveSystem
 
 # Инициализация состояния игры
 game_state = {
-    "wallet": Wallet(gold=500, crystals=10),
+    "wallet": Wallet(gold=500, crystals=100),
     "tower_level": 1,
     "max_tower_floor": 1,
     "heroes": [],
