@@ -1,4 +1,6 @@
 #party_system.py
+from systems.relationship_system import RelationshipSystem
+
 class PartySystem:
     def __init__(self, game_state):
         self.game_state = game_state
@@ -91,3 +93,13 @@ class PartySystem:
         }
         
         return True
+
+    def get_party_bonus(self, party_id):
+        """Возвращает бонус совместимости для группы"""
+        party_heroes = self.get_party_heroes(party_id)
+        return RelationshipSystem.calculate_party_bonus(party_heroes)
+
+    def get_party_synergy_details(self, party_id):
+        """Возвращает детали синергии группы"""
+        party_heroes = self.get_party_heroes(party_id)
+        return RelationshipSystem.get_party_synergy_details(party_heroes)

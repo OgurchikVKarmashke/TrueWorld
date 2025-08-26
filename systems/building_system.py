@@ -1,12 +1,21 @@
-#building_system.py
+# building_system.py
+# systems.building_system.py
+from ui.building_manager import calculate_max_building_level
+
 class Building:
-    def __init__(self, name, description, max_level, base_cost, built=False):
+    def __init__(self, name, description, max_level, base_cost, built=False, unlock_floor=0):
         self.name = name
         self.description = description
         self.level = 1 if built else 0
         self.max_level = max_level
         self.base_cost = base_cost
         self.built = built
+        self.unlock_floor = unlock_floor  # Этаж, на котором разблокируется
+        self.unlocked = built  # Если уже построено, то разблокировано
+
+    def is_available(self, tower_level):
+        """Проверяет, доступно ли здание для постройки/улучшения"""
+        return tower_level >= self.unlock_floor
 
     def build_cost(self):
         return self.base_cost * 2
@@ -16,8 +25,20 @@ class Building:
             return self.build_cost()
         return self.base_cost * self.level
 
+    def can_upgrade(self, tower_level):
+        """Можно ли улучшить здание"""
+        max_allowed_level = calculate_max_building_level(tower_level)
+        return (self.is_available(tower_level) and 
+                self.level < self.max_level and 
+                self.level < max_allowed_level and
+                (self.level > 0 or not self.built))
+
     def effect(self):
         pass
+
+    def __str__(self):
+        status = "✅ Построено" if self.built else "🚧 Не построено"
+        return f"{self.name} (Ур. {self.level}) - {status}"
 
 class Dormitory(Building):
     def __init__(self):
@@ -26,16 +47,16 @@ class Dormitory(Building):
             "Увеличивает лимит героев", 
             20,
             50,
-            built=True
+            built=True,
+            unlock_floor=0
         )
-        self.base_capacity = 5  # Базовая вместимость
+        self.base_capacity = 5
 
     def effect(self):
         capacity = self.get_capacity()
         return f"Вместимость: {capacity} героев"
     
     def get_capacity(self):
-        """Возвращает текущую вместимость"""
         return self.base_capacity + ((self.level - 1) * 2)
 
 class SummonHall(Building):
@@ -45,7 +66,8 @@ class SummonHall(Building):
             "Постоянное здание для призыва новых героев",
             1,  # Не улучшается
             0,   # Бесплатное
-            built=True
+            built=True,
+            unlock_floor=0
         )
 
     def effect(self):
@@ -58,7 +80,8 @@ class SynthesisRoom(Building):
             "Позволяет объединять героев для повышения уровня",
             10,
             100,
-            built=True
+            built=True,
+            unlock_floor=0
         )
 
     def effect(self):
@@ -71,14 +94,15 @@ class Storage(Building):
             "Увеличивает лимит ресурсов",
             15,
             75,
-            built=True
+            built=True,  # Оставляем True - склад изначально построен
+            unlock_floor=3  # Разблокируется на 3 этаже
         )
         self.capacity = 1000
 
     def effect(self):
         self.capacity = 1000 + (self.level * 500)
-        return f"Вместимость: {self.capacity} золata"
-
+        return f"Вместимость: {self.capacity} золота"
+        
 class Laboratory(Building):
     def __init__(self):
         super().__init__(
@@ -86,7 +110,8 @@ class Laboratory(Building):
             "Позволяет исследовать новые технологии",
             5,
             300,
-            built=False
+            built=False,
+            unlock_floor=5  # Разблокируется на 5 этаже
         )
         self.current_research = None
         self.research_progress = 0
@@ -105,34 +130,21 @@ class Canteen(Building):
             "Увеличивает эффективность героев",
             10,
             200,
-            built=False
+            built=False,
+            unlock_floor=3  # Разблокируется на 3 этаже
         )
         self.assigned_cook = None
-
-    def effect(self):
-        if self.level == 0:
-            return "Не построена"
-        if self.assigned_cook:
-            return f"Повар: {self.assigned_cook.name} | Бонус: +{self.level}% к опыту"
-        return "Нет повара"
 
 class Forge(Building):
     def __init__(self):
         super().__init__(
             "Кузница",
-            "Улучшает экипировку героев",
+            "Открывает систему крафта",
             8,
             300,
-            built=False
+            built=False,
+            unlock_floor=7  # Разблокируется на 7 этаже
         )
-        self.assigned_blacksmith = None
-
-    def effect(self):
-        if self.level == 0:
-            return "Не построена"
-        if self.assigned_blacksmith:
-            return f"Кузнец: {self.assigned_blacksmith.name} | Бонус: +{self.level}% к атаке"
-        return "Нет кузнеца"
 
 class ElevationRoom(Building):
     def __init__(self):
@@ -141,14 +153,9 @@ class ElevationRoom(Building):
             "Позволяет повышать звёздность героев",
             5,
             500,
-            built=False
+            built=False,
+            unlock_floor=10  # Разблокируется на 10 этаже
         )
-        self.required_level = 15
-
-    def effect(self):
-        if self.level == 0:
-            return "Не построена"
-        return f"Макс. уровень повышения: {self.level} звёзд"
 
 class BuildingManager:
     def __init__(self):
@@ -164,17 +171,42 @@ class BuildingManager:
         }
     
     def unlock_buildings(self, tower_level):
-        """Разблокирует здания по достижении этажей"""
-        if tower_level >= 3:
-            self.buildings["storage"].built = True
-        if tower_level >= 5:
-            self.buildings["laboratory"].built = True
-        if tower_level >= 7:
-            self.buildings["canteen"].built = True
-        if tower_level >= 10:
-            self.buildings["forge"].built = True
-        if tower_level >= 15:
-            self.buildings["elevation_room"].built = True
+        """Автоматически разблокирует здания при достижении этажей"""
+        for building in self.buildings.values():
+            if tower_level >= building.unlock_floor and not building.unlocked:
+                building.unlocked = True
+                print(f"🔓 Разблокировано здание: {building.name}")
+    
+    def get_available_buildings(self, tower_level):
+        """Возвращает список доступных для постройки/улучшения зданий"""
+        available = {}
+        for key, building in self.buildings.items():
+            if building.is_available(tower_level) and building.built:  # Только построенные здания
+                available[key] = building
+        return available
+    
+    def get_all_buildings_for_management(self, tower_level):
+        """Возвращает все здания для меню управления (включая недостроенные)"""
+        available = {}
+        for key, building in self.buildings.items():
+            if building.is_available(tower_level):
+                available[key] = building
+        return available
     
     def get_building(self, name):
         return self.buildings.get(name)
+    
+    def get_new_unlocks(self, tower_level):
+        """Возвращает список новых разблокировок зданий"""
+        new_unlocks = []
+        for building in self.buildings.values():
+            if (tower_level >= building.unlock_floor and 
+                not building.built and 
+                building.level == 0 and
+                building.unlocked):
+                new_unlocks.append(building)
+        return new_unlocks
+    
+    def get_built_buildings(self):
+        """Возвращает только построенные здания"""
+        return {key: building for key, building in self.buildings.items() if building.built}

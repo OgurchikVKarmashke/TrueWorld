@@ -1,5 +1,5 @@
-#synthesis_room_system.py
-#systems.synthesis_room_system.py
+# synthesis_room_system.py
+# systems.synthesis_room_system.py
 import random
 
 def get_available_heroes(heroes, base_hero, current_sacrifices):

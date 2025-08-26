@@ -1,48 +1,45 @@
 # building_manager.py
+# ui.building_manager.py
 from ui.ui_utils import print_header, loading_screen, press_enter_to_continue
 
 def manage_buildings(game_state):
     """
     Меню управления зданиями
     """
-    # Проверяем доступность улучшений
-    if game_state["tower_level"] < 1:
-        print_header("Управление зданиями")
-        print("Улучшение зданий доступно после прохождения 1 этажа башни!")
-        press_enter_to_continue()
-        return
+    tower_level = game_state["tower_level"]
+    building_manager = game_state["buildings"]
+    
+    # Автоматически разблокируем здания
+    building_manager.unlock_buildings(tower_level)
     
     while True:
         print_header("Управление зданиями")
         print(f"Золото: {game_state['wallet'].gold}")
-        print(f"Текущий этаж башни: {game_state['tower_level']}")
-        print(f"Макс. уровень зданий: {calculate_max_building_level(game_state['tower_level'])}")
+        print(f"Текущий этаж башни: {tower_level}")
+        print(f"Макс. уровень зданий: {calculate_max_building_level(tower_level)}")
         print()
         
-        buildings = game_state["buildings"].buildings
-        available_buildings = {}
-        
-        # ФИЛЬТРУЕМ здания по доступности
-        for key, building in buildings.items():
-            # Лаборатория доступна только с 5 этажа
-            if key == "laboratory" and game_state["tower_level"] < 5:
-                continue
-            available_buildings[key] = building
+        # Используем метод для получения всех зданий (включая недостроенные)
+        available_buildings = building_manager.get_all_buildings_for_management(tower_level)
         
         for i, (key, building) in enumerate(available_buildings.items(), 1):
-            cost = building.upgrade_cost()
-            max_allowed_level = calculate_max_building_level(game_state["tower_level"])
+            max_allowed_level = calculate_max_building_level(tower_level)
             
-            print(f"{i}. {building.name} (Ур. {building.level}/{max_allowed_level})")
+            print(f"{i}. {building.name} (Ур. {building.level}/{building.max_level})")
             print(f"   {building.description}")
             print(f"   Эффект: {building.effect()}")
             
-            if building.level >= max_allowed_level:
-                print(f"   🔒 Максимальный уровень для текущего этажа")
-            elif building.level == 0:
-                print(f"   🏗️  Постройка: {cost} золота")
-            elif building.level < max_allowed_level:
-                print(f"   🔧 Улучшение: {cost} золота")
+            if not building.built and building.level == 0:
+                print(f"   🏗️  Постройка: {building.build_cost()} золота")
+            elif building.can_upgrade(tower_level):
+                print(f"   🔧 Улучшение: {building.upgrade_cost()} золота")
+            else:
+                if building.level >= max_allowed_level:
+                    print(f"   🔒 Максимальный уровень для текущего этажа")
+                elif building.level >= building.max_level:
+                    print(f"   ✅ Максимальный уровень достигнут")
+                else:
+                    print(f"   ❌ Недоступно для улучшения")
             print()
         
         print("0. Назад")
@@ -62,15 +59,13 @@ def manage_buildings(game_state):
             building_key = building_keys[choice - 1]
             building = available_buildings[building_key]
             
-            max_allowed_level = calculate_max_building_level(game_state["tower_level"])
-            
-            if building.level >= max_allowed_level:
-                print(f"Достигнут максимальный уровень для текущего этажа!")
-                print(f"Пройдите больше этажей башни, чтобы увеличить лимит.")
+            if not building.can_upgrade(tower_level):
+                print("Невозможно улучшить это здание!")
                 press_enter_to_continue()
                 continue
             
-            cost = building.upgrade_cost()
+            cost = building.upgrade_cost() if building.level > 0 else building.build_cost()
+            
             if game_state["wallet"].subtract_gold(cost):
                 building.level += 1
                 if building.level == 1:
@@ -82,11 +77,13 @@ def manage_buildings(game_state):
                 loading_screen(2, f"{action.capitalize()} {building.name}")
                 print(f"{building.name} {action} до уровня {building.level}!")
                 print(f"Новый эффект: {building.effect()}")
+                
+                # Сохраняем изменения
+                game_state["save_system"].save_game(game_state, 1)
             else:
                 print("Недостаточно золота!")
             
             press_enter_to_continue()
-            game_state["save_system"].save_game(game_state, 1)
 
         else:
             print("Неверный выбор!")

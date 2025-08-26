@@ -1,4 +1,5 @@
-#buildings_menu.py
+# buildings_menu.py
+# ui.buildings_menu.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 from systems.summon_system import summon_hero
 from ui.building_manager import manage_buildings
@@ -9,43 +10,33 @@ def buildings_menu(game_state):
     """
     Меню управления зданиями
     """
+    building_manager = game_state["buildings"]
+    tower_level = game_state["tower_level"]
+    
+    # Автоматически разблокируем здания
+    building_manager.unlock_buildings(tower_level)
+    
     while True:
         print_header("🏛️ Комплекс зданий")
         print("Выберите здание для посещения:")
         print()
         
-        # Определяем доступность зданий на основе этажа
-        tower_level = game_state["tower_level"]
-        available_buildings = []
-        
-        # Всегда доступны
-        available_buildings.append(("Зал призыва героев", True, None))
-        available_buildings.append(("Комната синтеза", True, None))
-        
-        # Склад доступен с 3 этажа
-        available_buildings.append(("Склад", tower_level >= 3, "Этаж 3+"))
-        
-        # Лаборатория доступна с 5 этажа
-        available_buildings.append(("Лаборатория", tower_level >= 5, "Этаж 5+"))
-        
-        # Столовая доступна с 7 этажа
-        available_buildings.append(("Столовая", tower_level >= 7, "Этаж 7+"))
-        
-        # Кузница доступна с 10 этажа
-        available_buildings.append(("Кузница", tower_level >= 10, "Этаж 10+"))
-        
-        # Улучшение зданий доступно с 1 этажа
-        available_buildings.append(("Улучшить здания", tower_level >= 1, "Этаж 1+"))
-        
-        # Фильтруем только доступные здания
+        available_buildings = building_manager.get_available_buildings(tower_level)
         menu_items = []
+        
         counter = 1
-        for name, available, requirement in available_buildings:
-            if available:
-                menu_items.append((counter, name))
-                status_icon = "🛠️" if name == "Улучшить здания" else "🏠"
-                print(f"{counter}. {status_icon} {name}")
+        for key, building in available_buildings.items():
+            if building.built:  # Показываем только построенные здания
+                menu_items.append((counter, key, building.name))
+                status_icon = "🏠"
+                print(f"{counter}. {status_icon} {building.name}")
                 counter += 1
+        
+        # Добавляем меню улучшения (всегда доступно если есть этажи)
+        if tower_level >= 1:
+            menu_items.append((counter, "upgrade", "Улучшить здания"))
+            print(f"{counter}. 🛠️ Улучшить здания")
+            counter += 1
         
         print("0. ↩️ Вернуться в лобби")
         print()
@@ -61,28 +52,24 @@ def buildings_menu(game_state):
         
         # Находим выбранный пункт
         selected = None
-        for num, name in menu_items:
+        for num, key, name in menu_items:
             if num == choice:
-                selected = name
+                selected = (key, name)
                 break
         
-        if selected == "Зал призыва героев":
-            summon_hall(game_state)
-        elif selected == "Комната синтеза":
-            manage_synthesis(game_state)
-        elif selected == "Улучшить здания":
-            manage_buildings(game_state)
-        elif selected == "Лаборатория":
-            manage_research(game_state)
-        elif selected == "Склад":
-            print("Склад в разработке...")
-            press_enter_to_continue()
-        elif selected == "Столовая":
-            print("Столовая в разработке...")
-            press_enter_to_continue()
-        elif selected == "Кузница":
-            print("Кузница в разработке...")
-            press_enter_to_continue()
+        if selected:
+            key, name = selected
+            if key == "upgrade":
+                manage_buildings(game_state)
+            elif key == "summon_hall":
+                summon_hall(game_state)
+            elif key == "synthesis":
+                manage_synthesis(game_state)
+            elif key == "laboratory":
+                manage_research(game_state)
+            else:
+                print(f"{name} в разработке...")
+                press_enter_to_continue()
         else:
             print("Неверный выбор!")
             press_enter_to_continue()

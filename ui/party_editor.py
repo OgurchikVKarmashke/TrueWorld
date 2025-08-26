@@ -1,6 +1,7 @@
 #party_editor.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 from systems.party_system import PartySystem
+from systems.relationship_system import RelationshipSystem  # Добавлен импорт
 
 def manage_parties(game_state):
     """
@@ -72,6 +73,12 @@ def edit_party(game_state, party_system, party_id):
                 if hero_role:
                     role = f" - {hero_role}"
             print(f"{i}. {hero.name} (Ур. {hero.level}){role} - ❤️{hero.health_current}/{hero.health_max}")
+        
+        # Отображение бонусов от характеров героев в группе (перемещено после списка героев)
+        if party_heroes:  # Только если в группе есть герои
+            bonus = party_system.get_party_bonus(party_id)
+            bonus_text = RelationshipSystem.get_relationship_description(bonus)
+            print(f"📊 Синергия группы: {bonus_text}")
         print()
         
         # Нижний блок: доступные герои

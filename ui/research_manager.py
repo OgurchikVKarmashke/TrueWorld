@@ -92,3 +92,23 @@ def manage_research(game_state):
         ok, msg = research_mgr.start_research(key, game_state)
         print(("✅ " if ok else "❌ ") + msg)
         press_enter_to_continue()
+
+# Добавить в BuildingManager методы для отображения статусов
+def get_building_status_icon(self, building):
+    if building.level == 0:
+        return "🔒"  # Не построено
+    elif building.level >= building.max_level:
+        return "⭐"  # Максимальный уровень
+    else:
+        return "🏠"  # Построено, можно улучшать
+
+def get_availability_status(self, building, tower_level):
+    required_floors = {
+        "laboratory": 5,
+        "canteen": 7, 
+        "forge": 10,
+        "elevation_room": 15
+    }
+    if building.name in required_floors and tower_level < required_floors[building.name]:
+        return f"🔒 Этаж {required_floors[building.name]}+"
+    return "✅ Доступно"

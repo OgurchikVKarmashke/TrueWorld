@@ -3,6 +3,8 @@
 import random
 from game_data.name_library import generate_korean_name
 from systems.character_traits_system import CharacterTraitSystem
+from ui.visuals import VisualEffects
+from systems.relationship_system import RelationshipSystem
 
 # Словарь для определения лимитов уровней по звёздности
 STAR_LIMITS = {
@@ -136,6 +138,10 @@ class Hero:
         )
 
     def __str__(self):
-        star_symbol = "★" * self.star + "☆" * (7 - self.star)
-        status = "❤️" if self.is_alive else "💀"
-        return f"{status} {self.name} {star_symbol} (Ур. {self.level}) {self.character}\nЗдоровье: {self.health_current}/{self.health_max} Мана: {self.mana_current}/{self.mana_max}"
+        return VisualEffects.format_hero_display(self)
+
+    def get_party_bonus(self, party_heroes):
+        """Возвращает бонус от совместимости с другими героями группы"""
+        if not party_heroes or len(party_heroes) < 2:
+            return 1.0
+        return RelationshipSystem.calculate_party_bonus(party_heroes)

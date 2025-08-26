@@ -17,6 +17,7 @@ game_state = {
         "materials": {},
         "equipment": {}
     },
+    "achievement_system": None,
     "tower_monsters": {},
     "save_system": SaveSystem(),
     "role_system": None,
