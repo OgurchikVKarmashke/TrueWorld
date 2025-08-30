@@ -1,9 +1,8 @@
-# hero_system.py
-# systems/hero_system.py
+# systems.hero_system.py
 import random
 from game_data.name_library import generate_korean_name
 from systems.character_traits_system import CharacterTraitSystem
-from ui.visuals import VisualEffects
+from ui.visual_effects import VisualEffects
 from systems.relationship_system import RelationshipSystem
 
 # Словарь для определения лимитов уровней по звёздности
@@ -138,7 +137,13 @@ class Hero:
         )
 
     def __str__(self):
-        return VisualEffects.format_hero_display(self)
+        try:
+            return VisualEffects.format_hero_display(self)
+        except Exception as e:
+            # Фолбэк на случай ошибок с цветами
+            return (f"★{'★' * (self.star - 1)}{'☆' * (7 - self.star)} {self.name} (Ур. {self.level}) {self.character}\n"
+                    f"❤️ {self.health_current}/{self.health_max} | ✨ {self.mana_current}/{self.mana_max}\n"
+                    f"EXP: {self.experience}/{self.exp_to_next_level}")
 
     def get_party_bonus(self, party_heroes):
         """Возвращает бонус от совместимости с другими героями группы"""

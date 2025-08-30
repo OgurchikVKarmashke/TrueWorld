@@ -1,5 +1,4 @@
-# tower_menu.py
-# ui/tower_menu.py
+# ui.tower_menu.py
 from ui.ui_utils import loading_screen, press_enter_to_continue
 from ui.tower_ui import display_tower_header
 from systems.tower_system import tower_management

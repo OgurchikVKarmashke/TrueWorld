@@ -1,5 +1,4 @@
-#role_manager.py
-from ui.ui_utils import print_header, press_enter_to_continue
+# ui.role_manager.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 
 def manage_roles(game_state):
@@ -24,8 +23,8 @@ def manage_roles(game_state):
     while True:
         print_header("👥 Управление ролями героев")
         
-        # Показываем текущие назначения
-        assigned_heroes = role_system.get_assigned_heroes()
+        # Используем существующий метод get_assigned_heroes()
+        assigned_heroes = role_system.get_assigned_heroes()  # Этот метод существует!
         available_heroes = role_system.get_available_heroes()
         
         print("📋 Текущие назначения:")
@@ -35,6 +34,7 @@ def manage_roles(game_state):
         for role_name, role_info in role_system.roles.items():
             building = game_state["buildings"].get_building(role_info['building'])
             if building.built:
+                # Ищем назначенного героя для этого здания
                 assigned_hero = assigned_heroes.get(role_info['building'])
                 if assigned_hero:
                     print(f"{role_info['title']}: ✅ {assigned_hero.name}")
@@ -87,7 +87,7 @@ def is_role_system_available(game_state):
 
 def init_role_system(game_state):
     """Инициализирует систему ролей"""
-    if game_state["role_system"] is None:
+    if game_state.get("role_system") is None:
         from systems.role_system import RoleSystem
         game_state["role_system"] = RoleSystem(game_state)
     
@@ -160,9 +160,16 @@ def remove_hero_from_role(game_state, role_system, assigned_heroes):
     # Создаем список назначений
     assignments = []
     for building_name, hero in assigned_heroes.items():
+        # Находим информацию о роли для этого здания
         for role_name, role_info in role_system.roles.items():
             if role_info['building'] == building_name:
                 assignments.append((role_name, role_info, hero))
+                break
+    
+    if not assignments:
+        print("❌ Нет назначенных героев!")
+        press_enter_to_continue()
+        return
     
     for i, (role_name, role_info, hero) in enumerate(assignments, 1):
         print(f"{i}. {role_info['title']}: {hero.name}")
@@ -177,6 +184,6 @@ def remove_hero_from_role(game_state, role_system, assigned_heroes):
         return
     
     role_name, role_info, hero = assignments[choice - 1]
-    role_system.remove_hero_from_all_roles(hero)
+    role_system.remove_hero_from_role(hero)
     print(f"✅ {hero.name} снят с роли {role_info['title']}!")
     press_enter_to_continue()

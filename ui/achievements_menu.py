@@ -1,20 +1,23 @@
 # achievements_menu.py
-# ui.achievements_menu.pyfrom ui.ui_utils import print_header, press_enter_to_continue, loading_screen
+# ui.achievements_menu.pyf
 from ui.ui_utils import print_header, press_enter_to_continue
+from ui.visual_effects import VisualEffects
+from ui.sound_system import SoundSystem
 
 def achievements_menu(game_state):
     """Меню просмотра достижений"""
     achievement_system = game_state["achievement_system"]
     
-    # Отмечаем все достижения как просмотренные при входе в меню
-    achievement_system.mark_all_as_viewed()
+    # Инициализация звуковой системы
+    sound_system = SoundSystem()
+    sound_system.load_sounds()
     
     while True:
         completed_count = achievement_system.get_completed_count()
         total_count = achievement_system.get_total_count()
         
-        print_header("🏆 Система достижений")
-        print(f"📊 Прогресс: {completed_count}/{total_count} ({completed_count/total_count*100:.1f}%)")
+        print_header(VisualEffects.glowing_text("🏆 Система достижений"))
+        print(f"📊 Прогресс: {VisualEffects.progress_bar(completed_count, total_count)}")
         print()
         
         # Группируем достижения по статусу
@@ -27,16 +30,14 @@ def achievements_menu(game_state):
             else:
                 not_completed.append(achievement)
         
-        # Показываем выполненные достижения
+        # Показываем выполненные достижения с эффектами
         if completed:
-            print("✅ ВЫПОЛНЕННЫЕ ДОСТИЖЕНИЯ:")
+            print(VisualEffects.glowing_text("✅ ВЫПОЛНЕННЫЕ ДОСТИЖЕНИЯ"))
             for achievement in completed:
                 date_str = achievement.completed_date.strftime("%d.%m.%Y") if achievement.completed_date else ""
                 reward_text = f"+{achievement.reward_value} {achievement.reward_type}"
                 print(f"🏆 {achievement.name} - {reward_text} {date_str}")
                 print(f"   {achievement.description}")
-                print()
-            
             print()
 
         # Показываем недостигнутые достижения
@@ -55,26 +56,36 @@ def achievements_menu(game_state):
 
         try:
             choice = int(input("🎯 Ваш выбор: "))
+            sound_system.play_sound('button_click')
             
             if choice == 0:
                 break
             else:
-                print("❌ Неверный выбор. Доступна только опция '0' для возврата.")
+                print("❌ Неверный выбор.")
                 press_enter_to_continue()
                 
         except ValueError:
-            print("❌ Пожалуйста, введите 0 для возврата.")
+            sound_system.play_sound('error')
+            print("❌ Пожалуйста, введите число.")
             press_enter_to_continue()
 
 def show_achievement_notification(new_achievements):
-    """Показывает уведомление о новых достижениях"""
+    """Показывает уведомление о новых достижениях с эффектами"""
     if new_achievements:
-        print("\n🎉 НОВЫЕ ДОСТИЖЕНИЯ!")
-        print("═" * 30)
-        for achievement in new_achievements:
+        sound_system = SoundSystem()
+        sound_system.load_sounds()
+        sound_system.play_sound('achievement')
+        
+        VisualEffects.achievement_unlock_effect("НОВЫЕ ДОСТИЖЕНИЯ!")
+        print("═" * 40)
+        
+        for i, achievement in enumerate(new_achievements):
             reward_text = f"+{achievement.reward_value} {achievement.reward_type}"
-            print(f"🏆 {achievement.name}")
+            print(f"🏆 {VisualEffects.glowing_text(achievement.name)}")
             print(f"   {achievement.description}")
             print(f"   Награда: {reward_text}")
+            if i == 0:  # Только для первого достижения
+                VisualEffects.sparkle_effect()
             print()
+        
         press_enter_to_continue()

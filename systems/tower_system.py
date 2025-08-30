@@ -1,5 +1,4 @@
-# tower_system.py
-# systems/tower_system.py
+# systems.tower_system.py
 from systems.hero_system import Hero
 from systems.combat_system import Combat
 from systems.party_system import PartySystem
@@ -17,7 +16,7 @@ def choose_parties_for_floor(game_state, required_groups=1):
     available_parties = list(party_system.parties.items())
 
     while True:
-        choice = show_party_selection(available_parties, required_groups, game_state)  # Добавили game_state
+        choice = show_party_selection(available_parties, required_groups, game_state) 
 
         if choice in ("0", "b", "B"):
             return None, None
@@ -74,52 +73,57 @@ def send_to_tower(game_state):
     combat = Combat(active_party_heroes, current_floor, game_state)
     victory, log, total_exp = combat.start_combat()
     
-    # Сохраняем состояние игры после боя
-    game_state["save_system"].save_game(game_state)
+    # Определяем живых и мертвых героев ПОСЛЕ боя
+    dead_heroes = [h for h in active_party_heroes if not h.is_alive]
+    living_heroes = [h for h in active_party_heroes if h.is_alive]
     
-    if victory: 
-        reward = current_floor * 25
-        game_state["wallet"].add_gold(reward)
-        game_state["tower_level"] += 1
+    if victory:
+        # Получаем награды из объекта боя
+        rewards = getattr(combat, 'victory_rewards', {})
         
-        # Обновляем максимальный этаж
-        if game_state["tower_level"] > game_state.get("max_tower_floor", 1):
-            game_state["max_tower_floor"] = game_state["tower_level"]
-
-        living_heroes = [h for h in active_party_heroes if h.is_alive]
-        dead_heroes = [h for h in active_party_heroes if not h.is_alive]
-        
+        # Распределяем опыт между выжившими героями
         if living_heroes and total_exp > 0:
             exp_per_hero = total_exp // len(living_heroes)
             for hero in living_heroes:
                 result = hero.add_experience(exp_per_hero)
                 if result:
                     print(result)
-
+        
+        # Обновляем состав групп, убирая погибших героев
         party_system = PartySystem(game_state)
         for party_id in selected_party_ids:
-            # Обновляем состав группы, убирая погибших героев
             party_heroes = party_system.get_party_heroes(party_id)
             party_system.parties[party_id]["heroes"] = [id(h) for h in party_heroes if h.is_alive]
 
-        # Показываем экран победы
-        press_enter_to_continue()
-        show_victory_screen(reward, total_exp, game_state["tower_level"], dead_heroes)
+        # Повышаем этаж только если была победа
+        game_state["tower_level"] += 1
+        
+        # Обновляем максимальный этаж
+        if game_state["tower_level"] > game_state.get("max_tower_floor", 1):
+            game_state["max_tower_floor"] = game_state["tower_level"]
+        
+        # Показываем экран победы с наградами
+        show_victory_screen(
+            reward=rewards.get('gold', 0),
+            total_exp=total_exp,
+            new_floor=game_state["tower_level"],
+            dead_heroes=dead_heroes,
+            item_rewards=rewards.get('items', {})
+        )
         
     else:
-        dead_heroes = [h for h in active_party_heroes if not h.is_alive]  # Исправлен отступ
-        living_heroes = [h for h in active_party_heroes if h.is_alive]  # Исправлен отступ
-    
+        # Поражение - отступаем на этаж ниже
+        game_state["tower_level"] = max(1, current_floor - 1)
+        
+        # Обновляем состав групп
         party_system = PartySystem(game_state)
         for party_id in selected_party_ids:
-            # Обновляем состав группы
             party_heroes = party_system.get_party_heroes(party_id)
             party_system.parties[party_id]["heroes"] = [id(h) for h in party_heroes if h.is_alive]
-
-        game_state["tower_level"] = max(1, current_floor - 1)
-        press_enter_to_continue()
-        show_defeat_screen(dead_heroes, game_state["tower_level"])
         
+        # Показываем экран поражения
+        show_defeat_screen(dead_heroes, game_state["tower_level"])
+    
     # Сохраняем окончательное состояние
     game_state["save_system"].save_game(game_state)
     return victory
@@ -150,7 +154,7 @@ def show_floor_monster_info(floor_level):
             # Способности босса
             from game_data.bosses_data import BOSS_ABILITIES
             if boss_name in BOSS_ABILITIES:
-                info += f"   ✨ Способности:\n"
+                info += f"   ✨ Способabilities:\n"
                 for ability_name, ability_data in BOSS_ABILITIES[boss_name].items():
                     info += f"      - {ability_name} (шанс: {ability_data['chance']*100}%)\n"
         else:
@@ -204,7 +208,7 @@ def heal_all_heroes(game_state):
     confirm = show_healing_confirmation(len(wounded_heroes), healing_cost)
     
     if confirm == 1:
-        wallet.subtract_gold(healing_cost)  # Исправлено с spend_gold на subtract_gold
+        wallet.subtract_gold(healing_cost)
         for hero in wounded_heroes:
             hero.health_current = hero.health_max
             hero.mana_current = hero.mana_max
@@ -234,7 +238,7 @@ def tower_management(game_state):
             view_tower_progress(game_state)
         elif choice == 3:
             heal_all_heroes(game_state)
-        elif choice == 0:  # Изменили 4 на 0
+        elif choice == 0:
             break
         else:
             print("❌ Неверный выбор!")

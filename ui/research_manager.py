@@ -112,3 +112,4 @@ def get_availability_status(self, building, tower_level):
     if building.name in required_floors and tower_level < required_floors[building.name]:
         return f"🔒 Этаж {required_floors[building.name]}+"
     return "✅ Доступно"
+

@@ -1,6 +1,8 @@
-#save_menu.py
+# save_menu.py
+# ui.save_menu.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 from datetime import datetime
+from game_data.game_state import init_save_system  # Добавляем импорт
 
 def save_menu(game_state):
     """
@@ -10,7 +12,7 @@ def save_menu(game_state):
         print_header("💾 Меню сохранений")
         
         # Показываем информацию о сохранении
-        save_info = game_state["save_system"].get_save_info(1)
+        save_info = init_save_system().get_save_info(1)  # Теперь функция доступна
         if save_info:
             time = datetime.fromisoformat(save_info["timestamp"]).strftime("%d.%m.%Y %H:%M")
             print("📁 Единственный слот сохранения:")
@@ -56,3 +58,4 @@ def save_menu(game_state):
         else:
             print("❌ Неверный выбор!")
             press_enter_to_continue()
+

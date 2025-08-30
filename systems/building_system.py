@@ -1,32 +1,32 @@
-# building_system.py
 # systems.building_system.py
 from ui.building_manager import calculate_max_building_level
 
 class Building:
-    def __init__(self, name, description, max_level, base_cost, built=False, unlock_floor=0):
+    def __init__(self, name, description, max_level, cost_table, built=False, unlock_floor=0):
         self.name = name
         self.description = description
         self.level = 1 if built else 0
         self.max_level = max_level
-        self.base_cost = base_cost
+        self.cost_table = cost_table  # Таблица стоимостей для каждого уровня
         self.built = built
-        self.unlock_floor = unlock_floor  # Этаж, на котором разблокируется
-        self.unlocked = built  # Если уже построено, то разблокировано
+        self.unlock_floor = unlock_floor
+        self.unlocked = built
+        self.initially_built = built
 
     def is_available(self, tower_level):
-        """Проверяет, доступно ли здание для постройки/улучшения"""
         return tower_level >= self.unlock_floor
 
     def build_cost(self):
-        return self.base_cost * 2
+        return self.cost_table[1]  # Стоимость постройки (уровень 1)
 
     def upgrade_cost(self):
         if self.level == 0:
             return self.build_cost()
-        return self.base_cost * self.level
+        if self.level + 1 <= self.max_level:
+            return self.cost_table[self.level + 1]
+        return 0  # Максимальный уровень достигнут
 
     def can_upgrade(self, tower_level):
-        """Можно ли улучшить здание"""
         max_allowed_level = calculate_max_building_level(tower_level)
         return (self.is_available(tower_level) and 
                 self.level < self.max_level and 
@@ -40,13 +40,48 @@ class Building:
         status = "✅ Построено" if self.built else "🚧 Не построено"
         return f"{self.name} (Ур. {self.level}) - {status}"
 
+# Таблицы стоимостей для каждого здания
+DORMITORY_COSTS = {
+    1: 500, 2: 800, 3: 1200, 4: 1800, 5: 2500,
+    6: 3500, 7: 5000, 8: 7000, 9: 10000, 10: 15000
+}
+
+SYNTHESIS_COSTS = {
+    1: 800, 2: 1000, 3: 1500, 4: 2200, 5: 3000,
+    6: 4500, 7: 6500, 8: 9000, 9: 12000, 10: 16000
+}
+
+STORAGE_COSTS = {
+    1: 400, 2: 600, 3: 900, 4: 1400, 5: 2100,
+    6: 3100, 7: 4500, 8: 6500, 9: 9000, 10: 12000
+}
+
+LABORATORY_COSTS = {
+    1: 1200, 2: 1800, 3: 2700, 4: 4000, 5: 6000
+}
+
+CANTEEN_COSTS = {
+    1: 600, 2: 900, 3: 1400, 4: 2100, 5: 3200,
+    6: 4800, 7: 7000, 8: 10000, 9: 14000, 10: 19000
+}
+
+FORGE_COSTS = {
+    1: 1500, 2: 2200, 3: 3300, 4: 5000, 5: 7500,
+    6: 11000, 7: 16000, 8: 22000
+}
+
+ELEVATION_COSTS = {
+    1: 2000, 2: 3000, 3: 4500, 4: 6800, 5: 10000,
+    6: 14000, 7: 19000, 8: 25000, 9: 32000, 10: 40000
+}
+
 class Dormitory(Building):
     def __init__(self):
         super().__init__(
             "Общежитие", 
             "Увеличивает лимит героев", 
-            20,
-            50,
+            10,
+            DORMITORY_COSTS,
             built=True,
             unlock_floor=0
         )
@@ -64,8 +99,8 @@ class SummonHall(Building):
         super().__init__(
             "Зал призыва героев",
             "Постоянное здание для призыва новых героев",
-            1,  # Не улучшается
-            0,   # Бесплатное
+            1,
+            {1: 0},  # Бесплатное
             built=True,
             unlock_floor=0
         )
@@ -79,7 +114,7 @@ class SynthesisRoom(Building):
             "Комната синтеза",
             "Позволяет объединять героев для повышения уровня",
             10,
-            100,
+            SYNTHESIS_COSTS,
             built=True,
             unlock_floor=0
         )
@@ -91,17 +126,12 @@ class Storage(Building):
     def __init__(self):
         super().__init__(
             "Склад",
-            "Увеличивает лимит ресурсов",
-            15,
-            75,
-            built=True,  # Оставляем True - склад изначально построен
-            unlock_floor=3  # Разблокируется на 3 этаже
+            "Позволяет хранить предметы",
+            10,
+            STORAGE_COSTS,
+            built=True,
+            unlock_floor=0
         )
-        self.capacity = 1000
-
-    def effect(self):
-        self.capacity = 1000 + (self.level * 500)
-        return f"Вместимость: {self.capacity} золота"
         
 class Laboratory(Building):
     def __init__(self):
@@ -109,9 +139,9 @@ class Laboratory(Building):
             "Лаборатория",
             "Позволяет исследовать новые технологии",
             5,
-            300,
+            LABORATORY_COSTS,
             built=False,
-            unlock_floor=5  # Разблокируется на 5 этаже
+            unlock_floor=5
         )
         self.current_research = None
         self.research_progress = 0
@@ -129,9 +159,9 @@ class Canteen(Building):
             "Столовая",
             "Увеличивает эффективность героев",
             10,
-            200,
+            CANTEEN_COSTS,
             built=False,
-            unlock_floor=3  # Разблокируется на 3 этаже
+            unlock_floor=3
         )
         self.assigned_cook = None
 
@@ -141,9 +171,9 @@ class Forge(Building):
             "Кузница",
             "Открывает систему крафта",
             8,
-            300,
+            FORGE_COSTS,
             built=False,
-            unlock_floor=7  # Разблокируется на 7 этаже
+            unlock_floor=7
         )
 
 class ElevationRoom(Building):
@@ -151,10 +181,10 @@ class ElevationRoom(Building):
         super().__init__(
             "Комната возвышения",
             "Позволяет повышать звёздность героев",
-            5,
-            500,
+            10,
+            ELEVATION_COSTS,
             built=False,
-            unlock_floor=10  # Разблокируется на 10 этаже
+            unlock_floor=10
         )
 
 class BuildingManager:
@@ -171,22 +201,23 @@ class BuildingManager:
         }
     
     def unlock_buildings(self, tower_level):
-        """Автоматически разблокирует здания при достижении этажей"""
         for building in self.buildings.values():
             if tower_level >= building.unlock_floor and not building.unlocked:
                 building.unlocked = True
                 print(f"🔓 Разблокировано здание: {building.name}")
     
     def get_available_buildings(self, tower_level):
-        """Возвращает список доступных для постройки/улучшения зданий"""
         available = {}
+        excluded_buildings = ["dormitory", "canteen"]
+        
         for key, building in self.buildings.items():
-            if building.is_available(tower_level) and building.built:  # Только построенные здания
+            if (building.is_available(tower_level) and 
+                building.built and 
+                key not in excluded_buildings):
                 available[key] = building
         return available
     
     def get_all_buildings_for_management(self, tower_level):
-        """Возвращает все здания для меню управления (включая недостроенные)"""
         available = {}
         for key, building in self.buildings.items():
             if building.is_available(tower_level):
@@ -197,7 +228,6 @@ class BuildingManager:
         return self.buildings.get(name)
     
     def get_new_unlocks(self, tower_level):
-        """Возвращает список новых разблокировок зданий"""
         new_unlocks = []
         for building in self.buildings.values():
             if (tower_level >= building.unlock_floor and 
@@ -208,5 +238,4 @@ class BuildingManager:
         return new_unlocks
     
     def get_built_buildings(self):
-        """Возвращает только построенные здания"""
         return {key: building for key, building in self.buildings.items() if building.built}

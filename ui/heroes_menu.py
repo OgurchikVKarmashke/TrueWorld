@@ -1,8 +1,13 @@
-# heroes_menu.py
+# ui.heroes_menu.py
 from ui.ui_utils import print_header, press_enter_to_continue
 
 def heroes_menu(game_state):
     """Меню управления героями"""
+    
+    # ДОБАВИТЬ: Очистка групп при входе в меню героев
+    from systems.party_system import PartySystem
+    PartySystem(game_state).cleanup_dead_heroes()
+
     while True:
         print_header("🎯 Управление героями")
 

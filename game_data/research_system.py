@@ -1,4 +1,5 @@
-# game_data/research_system.py
+# research_system.py
+# game_data.research_system.py
 
 class Research:
     def __init__(self, key, name, description, base_cost, max_level=1, min_lab_level=1, reveal_floors=None):

@@ -1,20 +1,24 @@
 # main_loop.py
-from ui.ui_utils import clear_screen, loading_screen, print_header
-from game_data.game_state import game_state
+from game_data.game_state import game_state, init_save_system 
+from systems.hero_system import Hero
+from systems.achievement_system import AchievementSystem
+from systems.party_system import PartySystem
+from ui.achievements_menu import achievements_menu
 from ui.tower_menu import tower_menu
 from ui.heroes_menu import heroes_menu
 from ui.buildings_menu import buildings_menu
-from systems.hero_system import Hero
-from systems.achievement_system import AchievementSystem
-from ui.achievements_menu import achievements_menu
+from ui.ui_utils import clear_screen, loading_screen, print_header
 
 def initialize_game():
     """Инициализирует игру с возможностью загрузки"""
     print_header("🏝️ Летающий остров - Загрузка")
     game_state["achievement_system"] = AchievementSystem()
 
+    # Инициализируем систему сохранений
+    save_system = init_save_system()  # Сохраняем в переменную
+
     # Проверяем наличие сохранений
-    save_info = game_state["save_system"].get_save_info(1)
+    save_info = save_system.get_save_info(1)  # Используем save_system вместо init_save_system()
     if save_info:
         print("💾 Обнаружено сохранение:")
         print(f"   Этаж: {save_info['tower_level']}")
@@ -27,7 +31,7 @@ def initialize_game():
         try:
             choice = int(input("\n🎯 Ваш выбор: "))
             if choice == 1:
-                if game_state["save_system"].load_game(game_state, 1):
+                if save_system.load_game(game_state, 1):  # Используем save_system
                     loading_screen(2, "Загрузка сохранения")
                     print("✅ Игра загружена!")
                     return True
@@ -108,10 +112,21 @@ def main_menu():
                 print(f"   {unlock}")
             print()
 
+        # Очищаем мертвых героев из групп
+        party_system = PartySystem(game_state)
+        party_system.cleanup_dead_heroes()
+        
+        # Очищаем мертвых героев с ролей
+        if game_state.get("role_system") is not None:
+            game_state["role_system"].cleanup_dead_heroes()
+
         dormitory = game_state["buildings"].get_building("dormitory")
-        hero_count = len(game_state["heroes"])
+        
+        living_heroes = [h for h in game_state["heroes"] if h.is_alive]
+        hero_count = len(living_heroes)
         max_capacity = dormitory.get_capacity()
         print(f"👥 Герои: {hero_count}/{max_capacity}")
+
         print()
         
         # Меню
@@ -154,7 +169,7 @@ def main_menu():
             break
 
         else:
-            loading_screen(1, "❌ Неверный выбор")
+            loading_screen(0.5, "❌ Неверный выбор")
 
 if __name__ == "__main__":
   main_menu()

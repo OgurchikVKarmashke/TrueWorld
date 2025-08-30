@@ -1,4 +1,5 @@
-#party_editor.py
+# party_editor.py
+# ui.party_editor.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 from systems.party_system import PartySystem
 from systems.relationship_system import RelationshipSystem  # Добавлен импорт
@@ -144,3 +145,4 @@ def create_new_party(game_state, party_system):
         print("❌ Ошибка создания группы!")
     
     press_enter_to_continue()
+

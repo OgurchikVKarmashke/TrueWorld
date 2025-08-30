@@ -1,4 +1,5 @@
-#party_system.py
+# party_system.py
+# systems.party_system.py
 from systems.relationship_system import RelationshipSystem
 
 class PartySystem:
@@ -7,21 +8,53 @@ class PartySystem:
         self.parties = game_state["party_system"]["parties"]
         self.max_parties = game_state["party_system"]["max_parties"]
     
+    def get_hero_by_id(self, hero_id):
+        """Находит героя по его идентификатору"""
+        for hero in self.game_state["heroes"]:
+            if id(hero) == hero_id:
+                return hero
+        return None
+    
     def cleanup_dead_heroes(self):
-        """Очищает все группы от мертвых или удаленных героев"""
-        alive_hero_ids = {id(hero) for hero in self.game_state["heroes"] if hero.is_alive}
-        
+        """Очищает все группы от мёртвых и удалённых героев"""
         for party_id, party_data in self.parties.items():
-            # Оставляем только живых героев, которые существуют в game_state
-            party_data["heroes"] = [
-                hero_id for hero_id in party_data["heroes"] 
-                if hero_id in alive_hero_ids
-            ]
+            # Создаём новый список, куда попадут только живые и существующие герои
+            valid_hero_ids = []
+            for hero_id in party_data["heroes"]:
+                # Пытаемся найти героя по id
+                hero = self.get_hero_by_id(hero_id)
+                # Если герой найден И он жив, добавляем его id в новый список
+                if hero is not None and hero.is_alive:
+                    valid_hero_ids.append(hero_id)
+                else:
+                    # Удаляем связи и отношения если герой мёртв
+                    self._cleanup_hero_relationships(hero_id)
+            
+            # Заменяем старый список героев в группе на новый, очищенный
+            party_data["heroes"] = valid_hero_ids
+    
+    def _cleanup_hero_relationships(self, hero_id):
+        """Очищает отношения и связи для удалённого героя"""
+        # Очищаем из системы отношений
+        if "relationship_system" in self.game_state:
+            relationship_system = self.game_state["relationship_system"]
+            if hasattr(relationship_system, 'remove_hero'):
+                relationship_system.remove_hero(hero_id)
+        
+        # Очищаем из системы ролей
+        if "role_system" in self.game_state:
+            role_system = self.game_state["role_system"]
+            if hasattr(role_system, 'remove_assignment'):
+                role_system.remove_assignment(hero_id)
     
     def is_hero_available(self, hero, current_party_id=None):
         """Проверяет, доступен ли герой для добавления в группы"""
         # Сначала очищаем мертвых героев
         self.cleanup_dead_heroes()
+        
+        # Проверяем, жив ли герой
+        if not hero.is_alive:
+            return False
         
         # Проверяем, не находится ли герой в других группах
         for pid, pdata in self.parties.items():
@@ -49,6 +82,10 @@ class PartySystem:
 
     def add_hero_to_party(self, party_id, hero):
         """Добавляет героя в группу"""
+        # Проверяем, жив ли герой
+        if not hero.is_alive:
+            return False
+            
         if len(self.parties[party_id]["heroes"]) >= 5:
             return False
         
@@ -67,9 +104,13 @@ class PartySystem:
         return False
     
     def get_party_heroes(self, party_id):
-        """Возвращает героев конкретной группы"""
+        """Возвращает героев конкретной группы и ОЧИЩАЕТ её от мертвых"""
+        # Сначала очищаем группу от мертвых героев
+        self.cleanup_dead_heroes()
+        
         party_hero_ids = set(self.parties[party_id]["heroes"])
-        return [hero for hero in self.game_state["heroes"] if id(hero) in party_hero_ids and hero.is_alive]
+        return [hero for hero in self.game_state["heroes"] 
+                if id(hero) in party_hero_ids and hero.is_alive]
     
     def get_active_party_heroes(self):
         """Возвращает героев активной группы"""

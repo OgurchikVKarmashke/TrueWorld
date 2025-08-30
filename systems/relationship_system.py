@@ -1,5 +1,4 @@
-# relationship_system.py
-# systems/relationship_system.py
+# systems.relationship_system.py
 class RelationshipSystem:
     # Матрица совместимости черт характера
     COMPATIBILITY_MATRIX = {

@@ -1,7 +1,8 @@
-# combat_system.py
+# systems.combat_system.py
 import random
 import time
 from systems.hero_system import Hero
+from systems.party_system import PartySystem
 from game_data.monsters_data import MONSTER_BASE_STATS, BOSS_STATS, MONSTER_SPAWN_CHANCES, MONSTER_COUNT_BY_FLOOR
 from game_data.bosses_data import BOSS_ABILITIES
 
@@ -249,9 +250,20 @@ class Combat:
 
         victory = any(h.is_alive for h in self.heroes)
         
+        # Выдаем награды только при победе
+        if victory:
+            self._give_victory_rewards()
+            
         # Очищаем группы от мертвых героев
-        self.cleanup_party_system()
+        PartySystem(self.game_state).cleanup_dead_heroes()
         
+        # ДОБАВИТЬ ПРОВЕРКУ - очищаем мертвых героев с ролей, если система ролей инициализирована
+        if self.game_state.get("role_system") is not None:
+            self.game_state["role_system"].cleanup_dead_heroes()
+        
+        # Сохраняем окончательное состояние
+        self.game_state["save_system"].save_game(self.game_state)
+
         # Добавляем результат боя в лог
         result_message = "\n🎉 ПОБЕДА!" if victory else "\n💥 ПОРАЖЕНИЕ"
         print(result_message)
@@ -267,3 +279,31 @@ class Combat:
             from systems.party_system import PartySystem
             party_system = PartySystem(self.game_state)
             party_system.cleanup_dead_heroes()
+
+    def _give_victory_rewards(self):
+        """Выдает награды за победу на этаже"""
+        from game_data.tower_rewards import get_floor_rewards, generate_item_rewards
+        
+        rewards = get_floor_rewards(self.tower_level)
+        wallet = self.game_state["wallet"]
+        storage = self.game_state["storage"]
+        
+        # Добавляем золото и кристаллы
+        wallet.add_gold(rewards["gold"])
+        wallet.add_crystals(rewards.get("crystals", 0))
+        
+        # Генерируем и добавляем предметы
+        item_rewards = {}
+        if "items" in rewards:
+            generated_items = generate_item_rewards(rewards["items"])
+            for item_id, quantity in generated_items.items():
+                item = self.game_state["item_manager"].create_item(item_id, quantity)
+                if item and storage.add_item(item):
+                    item_rewards[item_id] = quantity
+        
+        # Сохраняем информацию о полученных наградах для показа
+        self.victory_rewards = {
+            "gold": rewards["gold"],
+            "crystals": rewards.get("crystals", 0),
+            "items": item_rewards
+        }

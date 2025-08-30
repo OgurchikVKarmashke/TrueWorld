@@ -1,13 +1,15 @@
-#game_state.py
+# game_data.game_state.py
 from systems.currency import Wallet
 from systems.building_system import BuildingManager
 from systems.hero_system import Hero
 from game_data.research_system import ResearchManager
-from game_data.save_system import SaveSystem
+from systems.storage_system import StorageSystem
+from systems.crafting_system import CraftingSystem 
+from systems.items_system import ItemManager 
 
 # Инициализация состояния игры
 game_state = {
-    "wallet": Wallet(gold=500, crystals=100),
+    "wallet": Wallet(gold=10000, crystals=1000),
     "tower_level": 1,
     "max_tower_floor": 1,
     "heroes": [],
@@ -19,7 +21,7 @@ game_state = {
     },
     "achievement_system": None,
     "tower_monsters": {},
-    "save_system": SaveSystem(),
+    "save_system": None,
     "role_system": None,
     "party_system": {
         "max_parties": 1,
@@ -31,16 +33,19 @@ game_state = {
             }
         },
         "current_party": "party_1"
-    }
+    },
+    "storage": StorageSystem(),
+    "crafting_system": CraftingSystem(),
+    "item_manager": ItemManager()
 }
 
-def init_role_system():
-    """Инициализирует систему ролей при первом использовании"""
-    if game_state["role_system"] is None:
-        from systems.role_system import RoleSystem
-        game_state["role_system"] = RoleSystem(game_state)
+def init_save_system():
+    """Инициализирует систему сохранений при первом использовании"""
+    if game_state["save_system"] is None:
+        from game_data.save_system import SaveSystem
+        game_state["save_system"] = SaveSystem()
     
-    return game_state["role_system"]
+    return game_state["save_system"]
 
 def is_role_system_available():
     """Проверяет, доступна ли система ролей"""
@@ -48,3 +53,4 @@ def is_role_system_available():
     return (buildings["canteen"].built or 
             buildings["forge"].built or 
             buildings["laboratory"].built)
+

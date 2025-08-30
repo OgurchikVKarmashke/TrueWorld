@@ -1,4 +1,4 @@
-#role_system.py
+# systems.role_system.py
 class RoleSystem:
     def __init__(self, game_state):
         self.game_state = game_state
@@ -11,7 +11,7 @@ class RoleSystem:
             'blacksmith': {
                 'building': 'forge', 
                 'title': '⚒️ Кузнец',
-                'bonus': 'Увеличивает атаку героев'
+                'bonus': 'Увеличивает шанс успеха крафта'
             },
             'researcher': {
                 'building': 'laboratory',
@@ -22,6 +22,10 @@ class RoleSystem:
     
     def is_hero_available(self, hero):
         """Проверяет, доступен ли герой для назначения на роль"""
+        # Герой должен быть жив
+        if not hero.is_alive:
+            return False
+
         # Герой не должен быть в группах
         party_system = self.game_state.get("party_system", {})
         parties = party_system.get("parties", {})
@@ -40,7 +44,8 @@ class RoleSystem:
     
     def get_available_heroes(self):
         """Возвращает героев, доступных для назначения на роли"""
-        return [hero for hero in self.game_state["heroes"] if self.is_hero_available(hero)]
+        return [hero for hero in self.game_state["heroes"] 
+                if hero.is_alive and self.is_hero_available(hero)]
     
     def assign_hero(self, role_name, hero):
         """Назначает героя на роль"""
@@ -60,28 +65,59 @@ class RoleSystem:
         building.assigned_hero = hero
         return True, f"{hero.name} назначен {role['title']}!"
     
-    def remove_hero_from_all_roles(self, hero):
+    def remove_hero_from_role(self, hero):
         """Снимает героя со всех ролей"""
         buildings = self.game_state["buildings"].buildings
+        removed = False
+        
         for building in buildings.values():
-            if hasattr(building, 'assigned_hero') and building.assigned_hero == hero:
+            if (hasattr(building, 'assigned_hero') and 
+                building.assigned_hero == hero):
                 building.assigned_hero = None
+                removed = True
+        
+        return removed
+    
+    def remove_hero_from_all_roles(self, hero):
+        """Снимает героя со всех ролей (алиас для совместимости)"""
+        return self.remove_hero_from_role(hero)
     
     def get_assigned_heroes(self):
-        """Возвращает всех назначенных героев"""
+        """Возвращает всех назначенных героев (только живых)"""
         assigned = {}
         buildings = self.game_state["buildings"].buildings
         for building_name, building in buildings.items():
-            if hasattr(building, 'assigned_hero') and building.assigned_hero:
+            if (hasattr(building, 'assigned_hero') and 
+                building.assigned_hero and 
+                building.assigned_hero.is_alive):
                 assigned[building_name] = building.assigned_hero
         return assigned
     
     def get_hero_role(self, hero):
-        """Возвращает роль героя, если он назначен"""
+        """Возвращает роль героя, если он назначен И жив"""
+        if not hero.is_alive:
+            return None
+            
         buildings = self.game_state["buildings"].buildings
         for building_name, building in buildings.items():
-            if hasattr(building, 'assigned_hero') and building.assigned_hero == hero:
+            if (hasattr(building, 'assigned_hero') and 
+                building.assigned_hero == hero and 
+                building.assigned_hero.is_alive):
                 for role_name, role_info in self.roles.items():
                     if role_info['building'] == building_name:
                         return role_info['title']
         return None
+
+    def cleanup_dead_heroes(self):
+        """Автоматически снимает мертвых героев со всех ролей"""
+        buildings = self.game_state["buildings"].buildings
+        removed_count = 0
+        
+        for building in buildings.values():
+            if (hasattr(building, 'assigned_hero') and 
+                building.assigned_hero and 
+                not building.assigned_hero.is_alive):
+                building.assigned_hero = None
+                removed_count += 1
+        
+        return removed_count

@@ -72,12 +72,10 @@ class AchievementSystem:
         condition_value = achievement.condition_value
         
         if condition_type == "build_any":
-            # Проверяем, построено ли хотя бы одно НОВОЕ здание (исключая изначально построенные)
-            initially_built = ["summon_hall", "dormitory", "synthesis", "storage"]  # Добавили storage
-            return any(building.level > 0 and building_id not in initially_built 
-                    for building_id, building in buildings.items())
+            # Проверяем, построено ли хотя бы одно НЕ изначальное здание
+            return any(building.level > 0 and not building.initially_built 
+                    for building in buildings.values())
             
-        # остальные условия остаются без изменений
         elif condition_type == "building_level":
             # Проверяем уровень конкретного здания
             building_id, required_level = condition_value

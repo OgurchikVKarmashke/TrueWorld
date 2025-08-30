@@ -1,28 +1,32 @@
 # party_manager.py
+# ui.party_manager.py
 from ui.ui_utils import print_header, press_enter_to_continue
+from ui.visual_effects import VisualEffects
 
 def view_party(game_state):
     """
-    Просмотр информации о героях
+    Просмотр информации о ТОЛЬКО ЖИВЫХ героях
     """
     print_header("Ваши герои")
     
-    if not game_state["heroes"]:
-        print("🎯 Отряд пуст")
-        print("➡️ Призовите героев в зале призыва героев")
-        print("💡 Стоимость призыва: 50 золота")
+    # Фильтруем только живых героев
+    living_heroes = [h for h in game_state["heroes"] if h.is_alive]
+    
+    if not living_heroes:
+        print("🎯 В вашем лобби отсутствуют герои")
+        print("💡 Призовите новых героев в зале призыва героев")
         press_enter_to_continue()
         return
     
     dormitory = game_state["buildings"].get_building("dormitory")
-    current_capacity = len(game_state["heroes"])
+    current_capacity = len(living_heroes)  # Используем только живых
     max_capacity = dormitory.get_capacity()
     
     print(f"👥 Героев: {current_capacity}/{max_capacity}")
     print("=" * 50)
     
-    for i, hero in enumerate(game_state["heroes"], 1):
-        star_symbol = "★" * hero.star
+    for i, hero in enumerate(living_heroes, 1):  # Используем living_heroes вместо game_state["heroes"]
+        star_display = VisualEffects.get_star_display(hero.star)
         
         # Получаем роль героя
         role = ""
@@ -46,7 +50,7 @@ def view_party(game_state):
         elif in_party:
             status = "⚔️ В группе"
         
-        print(f"{i}. {hero.name} {star_symbol} | {status}{role}")
+        print(f"{i}. {hero.name} {star_display} | {status}{role}")
         print(f"   📊 Уровень: {hero.level}")
         print(f"   ❤️ Здоровье: {hero.health_current}/{hero.health_max}")
         print(f"   🔵 Мана: {hero.mana_current}/{hero.mana_max}")

@@ -1,13 +1,19 @@
 # synthesis_room_menu.py
 # ui.synthesis_room_menu.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
+from systems.party_system import PartySystem
 from systems.synthesis_room_system import synthesize_heroes, get_available_heroes
+from ui.visual_effects import VisualEffects 
 
 def manage_synthesis(game_state):
     """
-    Улучшенная комната синтеза - визуальная часть
+    Улучшенная комната синтеза - более логичное меню
     """
-    heroes = game_state["heroes"]
+    # Очищаем мёртвых героев перед началом
+    PartySystem(game_state).cleanup_dead_heroes()
+    
+    heroes = [hero for hero in game_state["heroes"] if hero.is_alive]  # Только живые герои
+    
     if len(heroes) < 2:
         print_header("⚗️ КОМНАТА СИНТЕЗА")
         print("❌ Недостаточно героев для синтеза (нужно минимум 2)")
@@ -15,81 +21,48 @@ def manage_synthesis(game_state):
         return
 
     while True:
-        print_header("⚗️ КОМНАТА СИНТЕЗA")
-        print("Выберите основного героя для усиления:")
-        print("═" * 40)
-        
-        # Кнопка 0 - отмена
-        print("0. ↩️ Назад")
-        
-        # Герои начинаются с 2
-        for i, hero in enumerate(heroes, 2):
-            star_symbol = "★" * hero.star
-            print(f"{i}. {hero.name} {star_symbol} (Ур. {hero.level})")
-        print()
-        
-        try:
-            choice = int(input("🎯 Выбор основного героя: "))
-        except ValueError:
-            continue
-            
-        if choice == 0:
-            return
-        if 2 <= choice <= len(heroes) + 1:
-            base_hero = heroes[choice - 2]  # Корректируем индекс
-            break
-        else:
-            print("❌ Неверный выбор!")
-            press_enter_to_continue()
-    
-    # Выбор героев для жертвоприношения
-    sacrifices = []
-    while True:
         print_header("⚗️ КОМНАТА СИНТЕЗА")
-        print(f"Основной герой: {base_hero.name} (Ур. {base_hero.level})")
-        print("Выберите героев для синтеза (через запятую):")
+        print("Выберите действие:")
+        print("═" * 40)
+        print("1. 🎯 Выбрать основного героя для усиления")
+        print("2. 📋 Показать всех доступных героев")
+        print("0. ↩️ Вернуться назад")
         print("═" * 40)
         
-        available_heroes = get_available_heroes(heroes, base_hero, sacrifices)
-        
-        if not available_heroes:
-            print("❌ Нет доступных героев для синтеза!")
-            press_enter_to_continue()
-            break
-            
-        # Кнопка 0 - отмена, 1 - завершить
-        print("0. ↩️ Отмена")
-        print("1. ✅ Завершить выбор")
-        
-        # Герои начинаются с 2
-        for i, hero in enumerate(available_heroes, 2):
-            star_symbol = "★" * hero.star
-            print(f"{i}. {hero.name} {star_symbol} (Ур. {hero.level})")
-        print()
-        
         try:
-            choice = input("🎯 Выбор героев: ")
+            choice = input("🎯 Ваш выбор: ").strip()
+            
             if choice == "0":
                 return
             elif choice == "1":
-                break
+                if select_base_hero_and_sacrifices(game_state, heroes):
+                    return  # Возвращаемся после успешного синтеза
+            elif choice == "2":
+                show_all_available_heroes(heroes)
             else:
-                indices = [int(idx.strip()) for idx in choice.split(",") if idx.strip().isdigit()]
-                for idx in indices:
-                    if idx >= 2:  # Только герои (начиная с 2)
-                        adjusted_idx = idx - 2  # Корректируем индекс
-                        if 0 <= adjusted_idx < len(available_heroes):
-                            sacrifice = available_heroes[adjusted_idx]
-                            if sacrifice not in sacrifices:
-                                sacrifices.append(sacrifice)
-                                print(f"✅ Добавлен: {sacrifice.name}")
-        except ValueError:
-            continue
+                print("❌ Неверный выбор!")
+                press_enter_to_continue()
+                
+        except (ValueError, KeyboardInterrupt):
+            print("\n❌ Операция отменена")
+            press_enter_to_continue()
+
+def select_base_hero_and_sacrifices(game_state, heroes):
+    """Выбор основного героя и жертв для синтеза"""
+    # Выбор основного героя
+    base_hero = select_base_hero(heroes)
+    if base_hero is None:
+        return False
+    
+    # Выбор героев для жертвоприношения
+    sacrifices = select_sacrifice_heroes(heroes, base_hero)
+    if sacrifices is None:  # Пользователь отменил
+        return False
     
     if not sacrifices:
         print("❌ Не выбрано героев для синтеза!")
         press_enter_to_continue()
-        return
+        return False
     
     # Показываем предварительную информацию
     show_synthesis_preview(base_hero, sacrifices)
@@ -100,42 +73,218 @@ def manage_synthesis(game_state):
         # Выполняем синтез
         result_message, stat_improved = synthesize_heroes(game_state, base_hero, sacrifices)
         show_synthesis_result(result_message, stat_improved, len(sacrifices))
+        # Очищаем мёртвых героев после синтеза
+        PartySystem(game_state).cleanup_dead_heroes()
+        press_enter_to_continue()
+        return True
     
+    return False
+
+def select_base_hero(heroes):
+    """Выбор основного героя для усиления"""
+    while True:
+        print_header("🎯 ВЫБОР ОСНОВНОГО ГЕРОЯ")
+        print("Выберите героя, которого хотите усилить:")
+        print("═" * 40)
+        
+        # Кнопка 0 - отмена
+        print("0. ↩️ Назад")
+        
+        # Сортируем героев по уровню и звездам для удобства
+        sorted_heroes = sorted(heroes, key=lambda x: (x.star, x.level), reverse=True)
+        
+        for i, hero in enumerate(sorted_heroes, 1):
+            star_display = VisualEffects.get_star_display(hero.star)
+            # Фиксированная ширина для выравнивания
+            name_padding = 20 - len(hero.name)
+            print(f"{i}. {hero.name}{' ' * name_padding}{star_display} (Ур. {hero.level})")
+        print()
+        
+        try:
+            choice = input("🎯 Выбор героя: ").strip()
+            
+            if choice == "0":
+                return None
+                
+            choice_num = int(choice)
+            if 1 <= choice_num <= len(sorted_heroes):
+                return sorted_heroes[choice_num - 1]
+            else:
+                print("❌ Неверный выбор!")
+                press_enter_to_continue()
+                
+        except ValueError:
+            print("❌ Введите число!")
+            press_enter_to_continue()
+
+def select_sacrifice_heroes(heroes, base_hero):
+    """Выбор героев для жертвоприношения"""
+    sacrifices = []
+    
+    while True:
+        print_header("🔥 ВЫБОР ГЕРОЕВ ДЛЯ СИНТЕЗА")
+        print(f"Основной герой: {base_hero.name} (Ур. {base_hero.level})")
+        print(f"Выбрано жертв: {len(sacrifices)}")
+        print("═" * 40)
+        
+        available_heroes = get_available_heroes(heroes, base_hero, sacrifices)
+        
+        if not available_heroes:
+            print("❌ Все герои кончились, переходим к синтезу...")
+            press_enter_to_continue()
+            break
+            
+        print("Доступные герои:")
+        print("-" * 40)
+        
+        # Сортируем доступных героев
+        sorted_available = sorted(available_heroes, key=lambda x: (x.star, x.level), reverse=True)
+        
+        for i, hero in enumerate(sorted_available, 1):
+            star_display = VisualEffects.get_star_display(hero.star)
+            status = "✅" if hero in sacrifices else "  "
+            # Фиксированная ширина для выравнивания
+            name_padding = 18 - len(hero.name)
+            print(f"{status} {i}. {hero.name}{' ' * name_padding}{star_display} (Ур. {hero.level})")
+        
+        print("═" * 40)
+        print("Команды:")
+        print("C - Очистить все выборы")
+        print("F - Завершить выбор")
+        print("0 - ↩️ Отмена")
+        print("═" * 40)
+        
+        try:
+            choice = input("🎯 Ваш выбор: ").strip().upper()
+            
+            if choice == "0":
+                return None
+            elif choice == "F":
+                break
+            elif choice == "C":
+                sacrifices.clear()
+                print("✅ Выборы очищены")
+                continue
+            elif choice.isdigit():
+                choice_num = int(choice)
+                if 1 <= choice_num <= len(sorted_available):
+                    selected_hero = sorted_available[choice_num - 1]
+                    if selected_hero in sacrifices:
+                        sacrifices.remove(selected_hero)
+                        print(f"❌ Удален: {selected_hero.name}")
+                    else:
+                        sacrifices.append(selected_hero)
+                        print(f"✅ Добавлен: {selected_hero.name}")
+                else:
+                    print("❌ Неверный номер!")
+            else:
+                print("❌ Неверная команда!")
+                
+            press_enter_to_continue()
+            
+        except ValueError:
+            print("❌ Ошибка ввода!")
+            press_enter_to_continue()
+    
+    return sacrifices
+
+def show_all_available_heroes(heroes):
+    """Показывает всех доступных героев с группировкой по звездам"""
+    print_header("📋 ВСЕ ДОСТУПНЫЕ ГЕРОИ")
+    print("Список всех живых героев:")
+    print("═" * 50)
+    
+    if not heroes:
+        print("❌ Нет доступных героев!")
+        press_enter_to_continue()
+        return
+    
+    # Группируем героев по количеству звезд
+    heroes_by_stars = {}
+    for hero in heroes:
+        if hero.star not in heroes_by_stars:
+            heroes_by_stars[hero.star] = []
+        heroes_by_stars[hero.star].append(hero)
+    
+    # Сортируем группы по убыванию звезд
+    sorted_stars = sorted(heroes_by_stars.keys(), reverse=True)
+    
+    for star_level in sorted_stars:
+        star_group = heroes_by_stars[star_level]
+        
+        # Сортируем героев в группе по уровню
+        sorted_heroes = sorted(star_group, key=lambda x: x.level, reverse=True)
+        
+        # Выводим заголовок для группы звезд
+        star_display = VisualEffects.get_star_display(star_level)
+        print(f"\n🌟 {star_display} Герои ({len(sorted_heroes)}):")
+        print("-" * 40)
+        
+        for i, hero in enumerate(sorted_heroes, 1):
+            # Форматируем строку с фиксированными отступами
+            name_part = f"{hero.name:<15}"
+            level_part = f"Ур. {hero.level:>2}"
+            
+            print(f"  {i:2d}. {name_part}{level_part}")
+    
+    print("═" * 50)
     press_enter_to_continue()
 
 def show_synthesis_preview(base_hero, sacrifices):
     """Показывает предпросмотр синтеза"""
-    print_header("⚗️ ПРОЦЕСС СИНТЕЗА")
-    print(f"Основной герой: {base_hero.name}")
-    print("Жертвы:")
+    print_header("⚗️ ПРЕДПРОСМОТР СИНТЕЗА")
+    print(f"🎯 Основной герой: {base_hero.name} (Ур. {base_hero.level})")
+    print("🔥 Жертвы:")
+    
+    total_value = 0
     for hero in sacrifices:
-        print(f"   - {hero.name} (Ур. {hero.level})")
-    print()
+        hero_value = hero.level * 50
+        total_value += hero_value
+        print(f"   - {hero.name} (Ур. {hero.level}) → {hero_value} опыта")
+    
+    print("═" * 40)
     
     # Расчет бонусов
-    total_exp = sum(hero.level * 50 for hero in sacrifices)
     stat_bonus_chance = 0.1 * len(sacrifices)  # 10% за каждого героя
     
-    print(f"📈 Получено опыта: {total_exp}")
-    print(f"🎲 Шанс усиления характеристик: {stat_bonus_chance*100:.1f}%")
-    print()
+    print(f"📊 Общий опыт: {total_value}")
+    print(f"📈 Новый уровень: ~{base_hero.level + (total_value // 100)}")
+    print(f"🎲 Шанс усиления характеристики: {stat_bonus_chance*100:.1f}%")
+    print("═" * 40)
 
 def confirm_synthesis():
     """Запрос подтверждения синтеза"""
+    print("⚠️ ВНИМАНИЕ: Герои-жертвы будут удалены навсегда!")
     print("1. ✅ Подтвердить синтез")
     print("0. ❌ Отменить")
-    print()
+    print("═" * 40)
     
     try:
-        confirm = int(input("🎯 Ваш выбор: "))
-        return confirm == 1
-    except ValueError:
+        confirm = input("🎯 Ваш выбор: ").strip()
+        return confirm == "1"
+    except (ValueError, KeyboardInterrupt):
         print("❌ Синтез отменён")
         return False
 
 def show_synthesis_result(result_message, stat_improved, sacrifices_count):
     """Показывает результат синтеза"""
-    print(result_message)
-    print(f"✅ Синтез завершён! Удалено героев: {sacrifices_count}")
+    print_header("✨ РЕЗУЛЬТАТ СИНТЕЗА")
+    
+    # Убираем дублирование - показываем только основное сообщение
+    if "✨" in result_message:
+        # Если в результате уже есть эмодзи усиления, показываем как есть
+        print(result_message)
+    else:
+        # Иначе показываем базовое сообщение
+        lines = result_message.split('\n')
+        for line in lines:
+            if line.strip():  # Пропускаем пустые строки
+                print(line)
+    
+    print(f"✅ Успешно синтезировано! Удалено героев: {sacrifices_count}")
+    
+    # Показываем улучшение характеристики только если оно было
     if stat_improved:
-        print("🎉 Получено дополнительное усиление характеристики!")
+        print(f"🎉 Получено дополнительное усиление: +1 к {stat_improved}!")
+    
+    print("═" * 40)
