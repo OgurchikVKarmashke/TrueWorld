@@ -9,7 +9,7 @@ from systems.items_system import ItemManager
 
 # Инициализация состояния игры
 game_state = {
-    "wallet": Wallet(gold=10000, crystals=1000),
+    "wallet": Wallet(gold=10000, crystals=100),
     "tower_level": 1,
     "max_tower_floor": 1,
     "heroes": [],

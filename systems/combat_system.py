@@ -3,8 +3,11 @@ import random
 import time
 from systems.hero_system import Hero
 from systems.party_system import PartySystem
+from systems.difficulty_system import DifficultySystem
+from systems.combat_modifiers import COMBAT_MODIFIERS
 from game_data.monsters_data import MONSTER_BASE_STATS, BOSS_STATS, MONSTER_SPAWN_CHANCES, MONSTER_COUNT_BY_FLOOR
 from game_data.bosses_data import BOSS_ABILITIES
+from game_data.game_state import init_save_system
 
 class Monster:
     def __init__(self, name, level, monster_type="normal"):
@@ -104,6 +107,53 @@ class Combat:
         self.monsters = self._get_or_generate_monsters()
         self.combat_log = []
         self.total_exp_earned = 0
+        self.modifiers = self._load_combat_modifiers(tower_level)
+
+    def _load_combat_modifiers(self, floor_level):
+        """Загружает модификаторы боя для этажа"""
+        modifiers = []
+        
+        # Погодные модификаторы (случайная погода на каждом этаже)
+        weather_chances = {
+            "ясно": 40,      # 40% chance
+            "облачно": 25,   # 25% chance  
+            "дождь": 10,     # 10% chance
+            "гроза": 5,      # 5% chance
+            "туман": 8,      # 8% chance
+            "снег": 5,       # 5% chance
+            "ветер": 4,      # 4% chance
+            "жара": 3        # 3% chance
+        }
+        
+        weather_type = self._choose_random(weather_chances)
+        modifiers.append(COMBAT_MODIFIERS["weather"](weather_type))
+        
+        # Ловушки (случайные на любом этаже, кроме 1-го)
+        if floor_level > 1:
+            trap_chances = {
+                "none": 60,              # 60% без ловушки
+                "огненная_ловушка": 15,  # 15% chance
+                "ледяная_ловушка": 10,   # 10% chance
+                "ядовитая_ловушка": 8,   # 8% chance
+                "электрическая_ловушка": 7  # 7% chance
+            }
+            
+            trap_type = self._choose_random(trap_chances)
+            if trap_type != "none":
+                modifiers.append(COMBAT_MODIFIERS["trap"](trap_type))
+        
+        return modifiers
+
+    def _choose_random(self, chances_dict):
+        """Выбирает случайный вариант на основе шансов"""
+        total = sum(chances_dict.values())
+        r = random.randint(1, total)
+        current = 0
+        for item, chance in chances_dict.items():
+            current += chance
+            if r <= current:
+                return item
+        return list(chances_dict.keys())[0]
 
     def _get_or_generate_monsters(self):
         if self.tower_level in self.game_state["tower_monsters"]:
@@ -169,6 +219,9 @@ class Combat:
         hero_power = sum(h.attack + h.defense for h in self.heroes if h.is_alive)
         monster_power = sum(m.attack + m.defense for m in self.monsters if m.is_alive)
         
+        difficulty, color = DifficultySystem.calculate_difficulty(hero_power, monster_power)
+        difficulty_display = f"{color} Сложность: {difficulty.upper()}"
+
         battle_intro.extend([
             f"Сила отряда: {hero_power}",
             f"Сила монстров: {monster_power}",
@@ -203,6 +256,16 @@ class Combat:
                     action_text = hero.decide_action(target)
                     print(action_text)
                     self.combat_log.append(action_text)
+                    if hasattr(self, 'weather_modifier'):
+                        # Применяем эффекты погоды к атаке
+                        pass  # Реализуйте вызов weather_modifier.apply_weather_effect()
+
+                    if hasattr(self, 'trap_modifier'):
+                        # Проверяем активацию ловушки
+                        trap_result = self.trap_modifier.trigger_trap(target)
+                        if trap_result:
+                            print(trap_result)
+                            self.combat_log.append(trap_result)
                     
                     # Проверяем, был ли монстр убит и начисляем опыт
                     if not target.is_alive:
@@ -261,8 +324,18 @@ class Combat:
         if self.game_state.get("role_system") is not None:
             self.game_state["role_system"].cleanup_dead_heroes()
         
-        # Сохраняем окончательное состояние
+        # Сохранение
         self.game_state["save_system"].save_game(self.game_state)
+        
+        # Асинхронное сохранение
+        import threading
+        def async_save():
+            # ИСПРАВЛЕНИЕ: используем self.game_state вместо save_data
+            self.game_state["save_system"].save_game(self.game_state)
+        
+        thread = threading.Thread(target=async_save)
+        thread.daemon = True
+        thread.start()
 
         # Добавляем результат боя в лог
         result_message = "\n🎉 ПОБЕДА!" if victory else "\n💥 ПОРАЖЕНИЕ"
@@ -270,6 +343,11 @@ class Combat:
         self.combat_log.append(result_message)
         
         self.game_state["tower_monsters"][self.tower_level] = [m.to_dict() for m in self.monsters]
+        
+        # ДОБАВЛЕНО: Пауза для просмотра результатов боя
+        print("\n" + "="*50)
+        print("Бой завершен. Нажмите Enter чтобы продолжить...")
+        input()
         
         return victory, self.combat_log, self.total_exp_earned
 

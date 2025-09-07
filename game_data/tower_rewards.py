@@ -1,22 +1,23 @@
-# game_data/tower_rewards.py
-from typing import Dict, List
+# game_data.tower_rewards.py
 from systems.items_system import ItemRarity
+from typing import Dict, List
+import random
 
 # Таблица наград за этажи башни
 TOWER_FLOOR_REWARDS = {
     # Обычные этажи (1-4, 6-9, etc)
     **{floor: {
-        "gold": floor * 25,
-        "crystals": max(1, floor // 3),
+        "gold": floor * 80,  # Было 25, стало 80
+        "crystals": max(1, floor // 2),  # Было //3, стало //2
         "items": {
-            "iron_ore": (1, 3),  # item_id: (min_quantity, max_quantity)
+            "iron_ore": (1, 3),
         }
     } for floor in range(1, 100) if floor % 5 != 0},
     
     # Босс-этажи (каждый 5-й этаж)
     **{floor: {
-        "gold": floor * 50,
-        "crystals": max(3, floor // 2),
+        "gold": floor * 150,  # Было 50, стало 150
+        "crystals": max(3, floor),  # Было //2, стало просто floor
         "items": {
             "iron_ore": (2, 5),
             "steel_bar": (1, 2),
@@ -25,8 +26,8 @@ TOWER_FLOOR_REWARDS = {
     
     # Особые этажи (10, 20, 30...)
     **{floor: {
-        "gold": floor * 75,
-        "crystals": max(5, floor),
+        "gold": floor * 250,  # Было 75, стало 250
+        "crystals": max(5, floor * 2),  # Было floor, стало floor*2
         "items": {
             "iron_ore": (3, 7),
             "steel_bar": (2, 4),
@@ -36,13 +37,13 @@ TOWER_FLOOR_REWARDS = {
     
     # Легендарные этажи (25, 50, 75, 100)
     **{floor: {
-        "gold": floor * 100,
-        "crystals": max(10, floor * 2),
+        "gold": floor * 400,  # Было 100, стало 400
+        "crystals": max(10, floor * 3),  # Было *2, стало *3
         "items": {
             "iron_ore": (5, 10),
             "steel_bar": (3, 6),
             "magic_crystal": (2, 4),
-            "iron_sword": (1, 1),  # Шанс получить готовое оружие
+            "iron_sword": (1, 1),
         }
     } for floor in [25, 50, 75, 100]},
 }

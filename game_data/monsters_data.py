@@ -5,7 +5,7 @@ MONSTER_BASE_STATS = {
         "attack_per_level": 2,
         "defense_per_level": 1,
         "exp_per_level": 10,
-        "description": "Мелкий и противный человечек"
+        "description": "Мелкий, зелёный и противный"
     },
     "Скелет": {
         "health_per_level": 7,

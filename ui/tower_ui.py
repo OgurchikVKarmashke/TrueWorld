@@ -1,5 +1,6 @@
 # ui.tower_ui.py
 from game_data.tower_rewards import get_floor_rewards, generate_item_rewards
+from systems.difficulty_system import DifficultySystem
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen, clear_screen
 from ui.visual_effects import VisualEffects
 import time
@@ -100,7 +101,7 @@ def show_expedition_preview(active_party_heroes, current_floor):
 
     for i, hero in enumerate(active_party_heroes, 1):
         status = "✅ Готов" if hero.is_alive else "❌ Неспособен"
-        # ИСПРАВЛЕНО: используем метод из VisualEffects
+        # Используем метод из VisualEffects
         star_display = VisualEffects.get_star_display(hero.star)
         print(f"{i}. {hero.name} {star_display}")
         print(f"   📈 Ур. {hero.level} | {status}")
@@ -119,7 +120,7 @@ def show_expedition_preview(active_party_heroes, current_floor):
     except ValueError:
         return None
 
-def show_victory_screen(reward, total_exp, new_floor, dead_heroes, item_rewards=None):
+def show_victory_screen(reward, total_exp, new_floor, dead_heroes, item_rewards=None, game_state=None):
     """Показать экран победы с наградами"""
     display_tower_header("🎉 ПОБЕДА!")
     print(f"💰 Награда: {reward} золота")
@@ -129,9 +130,13 @@ def show_victory_screen(reward, total_exp, new_floor, dead_heroes, item_rewards=
     if item_rewards:
         print("📦 Полученные предметы:")
         for item_id, quantity in item_rewards.items():
-            item = game_state["item_manager"].get_item(item_id)
-            if item:
-                print(f"   - {item.name} x{quantity}")
+            if game_state and "item_manager" in game_state:
+                item = game_state["item_manager"].get_item(item_id)
+                if item:
+                    print(f"   - {item.name} x{quantity}")
+            else:
+                # Фолбэк если game_state не передан
+                print(f"   - Предмет ID: {item_id} x{quantity}")
     
     if dead_heroes:
         print("💀 Погибшие в бою:")

@@ -108,7 +108,8 @@ def send_to_tower(game_state):
             total_exp=total_exp,
             new_floor=game_state["tower_level"],
             dead_heroes=dead_heroes,
-            item_rewards=rewards.get('items', {})
+            item_rewards=rewards.get('items', {}),
+            game_state=game_state  # Добавьте этот параметр
         )
         
     else:

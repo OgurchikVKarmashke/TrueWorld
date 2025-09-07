@@ -1,16 +1,10 @@
-# achievements_menu.py
 # ui.achievements_menu.pyf
 from ui.ui_utils import print_header, press_enter_to_continue
 from ui.visual_effects import VisualEffects
-from ui.sound_system import SoundSystem
 
 def achievements_menu(game_state):
     """Меню просмотра достижений"""
     achievement_system = game_state["achievement_system"]
-    
-    # Инициализация звуковой системы
-    sound_system = SoundSystem()
-    sound_system.load_sounds()
     
     while True:
         completed_count = achievement_system.get_completed_count()
@@ -56,7 +50,6 @@ def achievements_menu(game_state):
 
         try:
             choice = int(input("🎯 Ваш выбор: "))
-            sound_system.play_sound('button_click')
             
             if choice == 0:
                 break
@@ -65,17 +58,12 @@ def achievements_menu(game_state):
                 press_enter_to_continue()
                 
         except ValueError:
-            sound_system.play_sound('error')
             print("❌ Пожалуйста, введите число.")
             press_enter_to_continue()
 
 def show_achievement_notification(new_achievements):
     """Показывает уведомление о новых достижениях с эффектами"""
     if new_achievements:
-        sound_system = SoundSystem()
-        sound_system.load_sounds()
-        sound_system.play_sound('achievement')
-        
         VisualEffects.achievement_unlock_effect("НОВЫЕ ДОСТИЖЕНИЯ!")
         print("═" * 40)
         

@@ -1,4 +1,4 @@
-# currency.py
+# systems.currency.py
 class Wallet:
     def __init__(self, gold=100, crystals=0):
         self.gold = gold
@@ -6,6 +6,9 @@ class Wallet:
 
     def add_gold(self, amount):
         self.gold += amount
+
+    def add_crystals(self, amount):
+        self.crystals += amount
 
     def subtract_gold(self, amount, check_only=False):
         if check_only:
