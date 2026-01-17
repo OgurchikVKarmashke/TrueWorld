@@ -1,12 +1,40 @@
-# party_system.py
-# systems.party_system.py
+# systems/party_system.py
 from systems.relationship_system import RelationshipSystem
 
 class PartySystem:
     def __init__(self, game_state):
         self.game_state = game_state
-        self.parties = game_state["party_system"]["parties"]
-        self.max_parties = game_state["party_system"]["max_parties"]
+        
+        # Безопасное получение party_system
+        party_system_data = game_state.get("party_system")
+        
+        # Если party_system None или пустой, создаем дефолтный
+        if party_system_data is None or not isinstance(party_system_data, dict):
+            party_system_data = {
+                "max_parties": 1,
+                "parties": {
+                    "party_1": {
+                        "name": "Основная группа",
+                        "heroes": [],
+                        "is_unlocked": True
+                    }
+                },
+                "current_party": "party_1"
+            }
+            game_state["party_system"] = party_system_data
+        
+        # Проверяем структуру
+        if "parties" not in party_system_data:
+            party_system_data["parties"] = {
+                "party_1": {"name": "Основная группа", "heroes": [], "is_unlocked": True}
+            }
+        if "max_parties" not in party_system_data:
+            party_system_data["max_parties"] = 1
+        if "current_party" not in party_system_data:
+            party_system_data["current_party"] = "party_1"
+        
+        self.parties = party_system_data["parties"]
+        self.max_parties = party_system_data["max_parties"]
     
     def get_hero_by_id(self, hero_id):
         """Находит героя по его идентификатору"""
@@ -69,6 +97,13 @@ class PartySystem:
         
         return True
     
+    def is_hero_in_any_party(self, hero):
+        """Проверяет, находится ли герой в любой группе"""
+        for pid, pdata in self.parties.items():
+            if id(hero) in pdata["heroes"]:
+                return True
+        return False
+    
     def get_available_heroes(self, current_party_id):
         """Возвращает героев, которые доступны для добавления в группу"""
         available_heroes = []
@@ -114,8 +149,7 @@ class PartySystem:
     
     def get_active_party_heroes(self):
         """Возвращает героев активной группы"""
-        current_party_id = self.game_state["party_system"]["current_party"]
-        return self.get_party_heroes(current_party_id)
+        return self.get_party_heroes(self.current_party_id)
     
     def can_unlock_new_party(self):
         """Проверяет, можно ли создать новую группу"""
@@ -133,7 +167,18 @@ class PartySystem:
             "is_unlocked": True
         }
         
+        # Обновляем game_state
+        self.game_state["party_system"]["parties"] = self.parties
+        self.game_state["party_system"]["max_parties"] = self.max_parties
+        
         return True
+    
+    def increase_max_parties(self, amount=1):
+        """Увеличивает максимальное количество доступных групп"""
+        self.max_parties += amount
+        if "party_system" in self.game_state:
+            self.game_state["party_system"]["max_parties"] = self.max_parties
+        return self.max_parties
 
     def get_party_bonus(self, party_id):
         """Возвращает бонус совместимости для группы"""
@@ -144,3 +189,16 @@ class PartySystem:
         """Возвращает детали синергии группы"""
         party_heroes = self.get_party_heroes(party_id)
         return RelationshipSystem.get_party_synergy_details(party_heroes)
+    
+    def get_party_info(self, party_id):
+        """Возвращает информацию о группе"""
+        if party_id not in self.parties:
+            return None
+        return {
+            "id": party_id,
+            "name": self.parties[party_id]["name"],
+            "hero_count": len(self.get_party_heroes(party_id)),
+            "max_heroes": 5,
+            "is_unlocked": self.parties[party_id]["is_unlocked"],
+            "bonus": self.get_party_bonus(party_id)
+        }

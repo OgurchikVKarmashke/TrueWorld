@@ -126,6 +126,13 @@ def show_victory_screen(reward, total_exp, new_floor, dead_heroes, item_rewards=
     print(f"💰 Награда: {reward} золота")
     print(f"📈 Получено опыта: {total_exp}")
     
+    # ПОКАЗЫВАЕМ СКОЛЬКО ОПЫТА ДОСТАЛОСЬ КАЖДОМУ ГЕРОЮ
+    if game_state and "heroes" in game_state:
+        living_heroes = [h for h in game_state["heroes"] if h.is_alive]
+        if living_heroes:
+            exp_per_hero = total_exp // len(living_heroes) if living_heroes else 0
+            print(f"📊 Опыт на героя: ~{exp_per_hero}")
+    
     # ПОКАЗЫВАЕМ ПОЛУЧЕННЫЕ ПРЕДМЕТЫ
     if item_rewards:
         print("📦 Полученные предметы:")

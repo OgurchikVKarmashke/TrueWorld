@@ -8,7 +8,12 @@ def get_available_heroes(heroes, base_hero, current_sacrifices):
 
 def calculate_synthesis_bonuses(base_hero, sacrifices):
     """Рассчитывает бонусы от синтеза с учетом звездности"""
-    total_exp = sum(hero.level * 50 * (1 + (hero.star - 1) * 0.2) for hero in sacrifices)
+    total_exp = 0
+    for hero in sacrifices:
+        # УВЕЛИЧИМ ФОРМУЛУ: опыт = (уровень героя)^2 * 50 * модификатор звезды
+        star_multiplier = 1.0 + (hero.star - 1) * 0.5  # 50% за каждую звезду
+        hero_exp = int((hero.level ** 2) * 50 * star_multiplier)
+        total_exp += hero_exp
     
     # Базовый шанс 10% за героя, увеличивается на 5% за каждую звезду выше 1
     base_chance = 0.1
@@ -29,7 +34,7 @@ def synthesize_heroes(game_state, base_hero, sacrifices):
     
     # Применяем опыт
     old_level = base_hero.level
-    result_message = base_hero.add_experience(total_exp)
+    result_message = base_hero.add_experience(total_exp)  # <-- Здесь вызывается add_experience
     
     # Убираем дублирование в сообщении об уровне
     if f"достиг {old_level + 1} уровня" in result_message:

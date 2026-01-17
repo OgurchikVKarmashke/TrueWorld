@@ -230,25 +230,58 @@ def show_all_available_heroes(heroes):
     print("═" * 50)
     press_enter_to_continue()
 
+def calculate_exp_requirement(level):
+    """Рассчитывает необходимый опыт для достижения уровня"""
+    return int(100 * (level ** 1.5))
+
 def show_synthesis_preview(base_hero, sacrifices):
     """Показывает предпросмотр синтеза"""
     print_header("⚗️ ПРЕДПРОСМОТР СИНТЕЗА")
     print(f"🎯 Основной герой: {base_hero.name} (Ур. {base_hero.level})")
+    print(f"   Текущий опыт: {base_hero.experience}/{base_hero.exp_to_next_level}")
     print("🔥 Жертвы:")
     
-    total_value = 0
+    total_exp = 0
     for hero in sacrifices:
-        hero_value = hero.level * 50
-        total_value += hero_value
-        print(f"   - {hero.name} (Ур. {hero.level}) → {hero_value} опыта")
+        # ТА ЖЕ ФОРМУЛА, ЧТО И В calculate_synthesis_bonuses
+        star_multiplier = 1.0 + (hero.star - 1) * 0.5  # 50% за каждую звезду
+        hero_exp = int((hero.level ** 2) * 50 * star_multiplier)
+        total_exp += hero_exp
+        print(f"   - {hero.name} (Ур. {hero.level}, ★{hero.star}) → {hero_exp} опыта")
     
     print("═" * 40)
     
-    # Расчет бонусов
-    stat_bonus_chance = 0.1 * len(sacrifices)  # 10% за каждого героя
+    # Показываем точный расчет уровня
+    current_exp = base_hero.experience
+    exp_after = current_exp + total_exp
+    level = base_hero.level
+    exp_needed_for_next = base_hero.exp_to_next_level
     
-    print(f"📊 Общий опыт: {total_value}")
-    print(f"📈 Новый уровень: ~{base_hero.level + (total_value // 100)}")
+    # Симулируем повышение уровней
+    temp_exp = exp_after
+    temp_level = level
+    levels_gained = 0
+    
+    while temp_exp >= calculate_exp_requirement(temp_level) and temp_level < 120:  # 120 - максимальный уровень
+        temp_exp -= calculate_exp_requirement(temp_level)
+        temp_level += 1
+        levels_gained += 1
+    
+    # Расчет бонусов (копируем из synthesis_room_system.py)
+    base_chance = 0.1
+    star_bonus = sum((hero.star - 1) * 0.05 for hero in sacrifices)
+    stat_bonus_chance = base_chance * len(sacrifices) + star_bonus
+    stat_bonus_chance = min(stat_bonus_chance, 0.8)
+    
+    print(f"📊 Общий опыт: {total_exp}")
+    print(f"📈 Опыт после синтеза: {exp_after}")
+    
+    if levels_gained > 0:
+        print(f"🎯 Новый уровень: {temp_level} (+{levels_gained})")
+    else:
+        exp_needed = calculate_exp_requirement(level) - exp_after
+        print(f"🎯 До следующего уровня: {exp_needed} опыта")
+    
     print(f"🎲 Шанс усиления характеристики: {stat_bonus_chance*100:.1f}%")
     print("═" * 40)
 
@@ -270,16 +303,11 @@ def show_synthesis_result(result_message, stat_improved, sacrifices_count):
     """Показывает результат синтеза"""
     print_header("✨ РЕЗУЛЬТАТ СИНТЕЗА")
     
-    # Убираем дублирование - показываем только основное сообщение
-    if "✨" in result_message:
-        # Если в результате уже есть эмодзи усиления, показываем как есть
-        print(result_message)
-    else:
-        # Иначе показываем базовое сообщение
-        lines = result_message.split('\n')
-        for line in lines:
-            if line.strip():  # Пропускаем пустые строки
-                print(line)
+    # Разделяем сообщение на строки и выводим красиво
+    lines = result_message.split('\n')
+    for line in lines:
+        if line.strip():  # Пропускаем пустые строки
+            print(line)
     
     print(f"✅ Успешно синтезировано! Удалено героев: {sacrifices_count}")
     

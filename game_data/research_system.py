@@ -1,30 +1,18 @@
-# research_system.py
 # game_data.research_system.py
 
 class Research:
     def __init__(self, key, name, description, base_cost, max_level=1, min_lab_level=1, reveal_floors=None):
-        """
-        reveal_floors: список этажей, после которых появляется возможность изучать уровни (по индексу -> уровень)
-            пример: [5, 10, 15] означает:
-                ур.1 появляется после этажа 5,
-                ур.2 появляется после этажа 10,
-                ур.3 появляется после этажа 15
-        """
         self.key = key
         self.name = name
         self.description = description
-        self.base_cost = base_cost  # {'gold': int, 'crystals': int}
+        self.base_cost = base_cost
         self.max_level = max_level
         self.min_lab_level = min_lab_level
         self.reveal_floors = reveal_floors or []
         self.level = 0
-        self.is_researched = False  # True, когда level == max_level
+        self.is_researched = False
 
     def next_level_available_by_floor(self, tower_level: int) -> bool:
-        """
-        Проверяем, доступен ли следующий уровень исследования по зачистке нужного этажа.
-        Если список reveal_floors короче max_level, считаем, что оставшиеся уровни по этажу не ограничены.
-        """
         next_level = self.level + 1
         if next_level > self.max_level:
             return False
@@ -34,9 +22,6 @@ class Research:
         return True
 
     def next_level_cost(self):
-        """
-        Стоимость следующего уровня. Стоимость скалируется линейно: base * (уровень)
-        """
         next_level = self.level + 1
         return {
             "gold": self.base_cost["gold"] * next_level,
@@ -46,9 +31,6 @@ class Research:
 
 class ResearchManager:
     def __init__(self):
-        # 1) Понимание героев (1 уровень, лаборатория 1, появляется после этажа 5)
-        # 2) Расширение отрядов (до 3 уровней: ур.1 -> 2 группы, ур.2 -> 3 группы, ур.3 -> 4 группы),
-        #    уровни появляются после этажей [5, 10, 15]
         self.researches = {
             "hero_understanding": Research(
                 key="hero_understanding",
@@ -70,22 +52,12 @@ class ResearchManager:
             ),
         }
 
-    # ===== ВИДИМОСТЬ / ПРОВЕРКИ =====
-
     def is_visible(self, key, game_state):
-        """Показывать ли технологию в списке (если доступен следующий уровень по этажу)"""
         research = self.researches[key]
         tower_level = game_state["tower_level"]
         return (not research.is_researched) and research.next_level_available_by_floor(tower_level)
 
     def can_research(self, key, game_state):
-        """
-        Можно ли изучить следующий уровень:
-        - технология не макс.
-        - достигнут нужный этаж для след. уровня
-        - уровень лаборатории
-        - хватает ресурсов
-        """
         research = self.researches[key]
         if research.level >= research.max_level:
             return False, "Исследование достигло максимального уровня"
@@ -97,6 +69,18 @@ class ResearchManager:
         if lab is None or lab.level < research.min_lab_level:
             return False, f"Требуется Лаборатория ур. {research.min_lab_level}"
 
+        # ПРОВЕРКА НА НАЗНАЧЕННОГО ИССЛЕДОВАТЕЛЯ
+        if "role_system" in game_state:
+            role_system = game_state["role_system"]
+            assigned_heroes = role_system.get_assigned_heroes()
+            if "laboratory" not in assigned_heroes or assigned_heroes["laboratory"] is None:
+                return False, "Требуется назначить исследователя в Лабораторию"
+        else:
+            # Если системы ролей нет, тоже требуем исследователя
+            lab = game_state["buildings"].get_building("laboratory")
+            if lab is None or not hasattr(lab, 'assigned_hero') or lab.assigned_hero is None:
+                return False, "Требуется назначить исследователя в Лабораторию"
+
         cost = research.next_level_cost()
         if not game_state["wallet"].subtract_gold(cost["gold"], check_only=True):
             return False, "Недостаточно золота"
@@ -104,8 +88,6 @@ class ResearchManager:
             return False, "Недостаточно кристаллов"
 
         return True, "Можно исследовать"
-
-    # ===== ЭФФЕКТЫ =====
 
     def _apply_effect(self, key, game_state):
         research = self.researches[key]
@@ -117,14 +99,29 @@ class ResearchManager:
             game_state.setdefault("flags", {})["hero_understanding"] = True
 
         elif key == "party_expansion":
-            # 1 базовая группа + каждый уровень даёт +1
-            max_parties = 1 + research.level
-            ps = game_state["party_system"]
-            ps["max_parties"] = max_parties
-
-            # Создаём недостающие группы
-            parties = ps["parties"]
-            for i in range(2, max_parties + 1):
+            # ПРОСТОЙ СПОСОБ: устанавливаем max_parties
+            target_max_parties = 1 + research.level
+            
+            # Убедимся что party_system существует
+            if "party_system" not in game_state:
+                game_state["party_system"] = {
+                    "max_parties": 1,
+                    "parties": {
+                        "party_1": {
+                            "name": "Основная группа",
+                            "heroes": [],
+                            "is_unlocked": True
+                        }
+                    },
+                    "current_party": "party_1"
+                }
+            
+            # Устанавливаем новое максимальное количество групп
+            game_state["party_system"]["max_parties"] = target_max_parties
+            
+            # Создаем недостающие группы
+            parties = game_state["party_system"]["parties"]
+            for i in range(len(parties) + 1, target_max_parties + 1):
                 pid = f"party_{i}"
                 if pid not in parties:
                     parties[pid] = {
@@ -138,8 +135,6 @@ class ResearchManager:
         for key in self.researches.keys():
             self._apply_effect(key, game_state)
 
-    # ===== СТАРТ ИССЛЕДОВАНИЯ =====
-
     def start_research(self, key, game_state):
         can, msg = self.can_research(key, game_state)
         if not can:
@@ -147,9 +142,24 @@ class ResearchManager:
 
         research = self.researches[key]
         cost = research.next_level_cost()
+        
+        # Позже можно добавить бонусы от исследователя
+        researcher_bonus = 1.0
+        if "role_system" in game_state:
+            role_system = game_state["role_system"]
+            assigned_heroes = role_system.get_assigned_heroes()
+            if "laboratory" in assigned_heroes and assigned_heroes["laboratory"] is not None:
+                researcher = assigned_heroes["laboratory"]
+                # Здесь позже будет логика бонусов от навыков героя
+                # Например: researcher_bonus = 0.9 if researcher.has_skill("research_efficiency") else 1.0
+        
+        actual_cost = {
+            "gold": int(cost["gold"] * researcher_bonus),
+            "crystals": int(cost["crystals"] * researcher_bonus)
+        }
 
-        game_state["wallet"].subtract_gold(cost["gold"])
-        game_state["wallet"].subtract_crystals(cost["crystals"])
+        game_state["wallet"].subtract_gold(actual_cost["gold"])
+        game_state["wallet"].subtract_crystals(actual_cost["crystals"])
 
         research.level += 1
         if research.level >= research.max_level:
@@ -159,10 +169,7 @@ class ResearchManager:
 
         return True, f"{research.name} ур.{research.level} изучено!"
 
-    # ===== СЕРИАЛИЗАЦИЯ =====
-
     def export_state(self):
-        """Сериализация уровней исследований"""
         data = {}
         for key, r in self.researches.items():
             data[key] = {
@@ -172,13 +179,11 @@ class ResearchManager:
         return data
 
     def import_state(self, saved_data):
-        """Десериализация уровней (с обратной совместимостью по старым сейвам)"""
         if not saved_data:
             return
         for key, state in saved_data.items():
             if key in self.researches:
                 r = self.researches[key]
-                # Поддержка старых сейвов (когда был только is_researched)
                 level = state.get("level", r.max_level if state.get("is_researched") else 0)
                 r.level = max(0, min(level, r.max_level))
                 r.is_researched = r.level >= r.max_level

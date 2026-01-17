@@ -1,5 +1,4 @@
 # main_loop.py
-from game_data.game_state import game_state, init_save_system 
 from systems.hero_system import Hero
 from systems.achievement_system import AchievementSystem
 from systems.party_system import PartySystem
@@ -8,17 +7,21 @@ from ui.tower_menu import tower_menu
 from ui.heroes_menu import heroes_menu
 from ui.buildings_menu import buildings_menu
 from ui.ui_utils import clear_screen, loading_screen, print_header
+from app import app
 
 def initialize_game():
     """Инициализирует игру с возможностью загрузки"""
     print_header("🏝️ Летающий остров - Загрузка")
-    game_state["achievement_system"] = AchievementSystem()
-
-    # Инициализируем систему сохранений
-    save_system = init_save_system()  # Сохраняем в переменную
-
-    # Проверяем наличие сохранений
-    save_info = save_system.get_save_info(1)  # Используем save_system вместо init_save_system()
+    
+    # Сначала проверяем сохранения ДО инициализации App
+    save_system = app.save_system if hasattr(app, 'save_system') else None
+    if not save_system:
+        # Создаем временную систему сохранений для проверки
+        from game_data.save_system import SaveSystem
+        save_system = SaveSystem()
+    
+    save_info = save_system.get_save_info(1)
+    
     if save_info:
         print("💾 Обнаружено сохранение:")
         print(f"   Этаж: {save_info['tower_level']}")
@@ -31,19 +34,64 @@ def initialize_game():
         try:
             choice = int(input("\n🎯 Ваш выбор: "))
             if choice == 1:
-                if save_system.load_game(game_state, 1):  # Используем save_system
-                    loading_screen(2, "Загрузка сохранения")
+                # Загружаем сохранение напрямую в App
+                loading_screen(2, "Загрузка сохранения")
+                # После загрузки игры обновляем состояние app и получаем game_state
+                if save_system.load_into_app(app, 1):
                     print("✅ Игра загружена!")
-                    return True
+                    # Получаем состояние после загрузки
+                    game_state = app.get_game_state_dict()
+                    return game_state  # <-- ВАЖНО: добавить return здесь!
                 else:
-                    print("❌ Ошибка загрузки!")
+                    print("❌ Ошибка загрузки! Создаем новую игру...")
                     loading_screen(1)
+                    # Если не удалось загрузить, создаем новую
+                    app.initialize()
+                    game_state = app.get_game_state_dict()
+                    return game_state
+            elif choice == 2:
+                # Создаем новую игру
+                game_state = app.start_new_game()
+                save_system.save_game(game_state, 1)
+                loading_screen(2, "Создание нового мира")
+                return game_state
         except ValueError:
-            pass
+            pass  # Если ошибка ввода, продолжаем с новой игрой
     
-    # Новая игра
+    # Если сохранения нет или произошла ошибка - создаем новую игру
+    game_state = app.start_new_game()
+    
+    # Сохраняем новую игру
+    save_system = game_state["save_system"]
+    save_system.save_game(game_state, 1)
+    
     loading_screen(2, "Создание нового мира")
-    return True
+    return game_state
+
+def _update_app_from_state(game_state):
+    """Обновляет состояние App из загруженного game_state"""
+    # Обновляем основные поля
+    app.tower_level = game_state.get("tower_level", 1)
+    app.max_tower_floor = game_state.get("max_tower_floor", 1)
+    app.heroes = game_state.get("heroes", [])
+    app.tower_monsters = game_state.get("tower_monsters", {})
+    
+    # Обновляем компоненты
+    if "wallet" in game_state:
+        app.wallet.gold = game_state["wallet"].gold
+        app.wallet.crystals = game_state["wallet"].crystals
+    
+    if "buildings" in game_state:
+        app.buildings = game_state["buildings"]
+    
+    if "research" in game_state:
+        app.research = game_state["research"]
+    
+    if "party_system" in game_state:
+        app._components['party_system'] = game_state["party_system"]
+    
+    if "storage" in game_state:
+        app.storage = game_state["storage"]
 
 def check_new_unlocks(game_state):
     """Проверяет и показывает новые возможности"""
@@ -75,7 +123,8 @@ def check_new_unlocks(game_state):
 
 def main_menu():
     """Главное меню игры"""
-    if not initialize_game():
+    game_state = initialize_game()
+    if not game_state:
         return
     
     while True:
@@ -172,4 +221,4 @@ def main_menu():
             loading_screen(0.5, "❌ Неверный выбор")
 
 if __name__ == "__main__":
-  main_menu()
+    main_menu()

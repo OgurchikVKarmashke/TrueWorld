@@ -1,4 +1,4 @@
-# ui/research_manager.py
+# ui.research_manager.py
 from ui.ui_utils import print_header, loading_screen, press_enter_to_continue
 
 def manage_research(game_state):
@@ -16,19 +16,44 @@ def manage_research(game_state):
         press_enter_to_continue()
         return
 
+    # Получаем информацию об исследователе
+    researcher_name = "Нет"
+    if "role_system" in game_state:
+        role_system = game_state["role_system"]
+        assigned_heroes = role_system.get_assigned_heroes()
+        if "laboratory" in assigned_heroes and assigned_heroes["laboratory"] is not None:
+            researcher = assigned_heroes["laboratory"]
+            researcher_name = f"{researcher.name} (ур. {researcher.level})"
+    elif hasattr(lab, 'assigned_hero') and lab.assigned_hero is not None:
+        researcher_name = f"{lab.assigned_hero.name} (ур. {lab.assigned_hero.level})"
+
     while True:
         print_header("🔬 Лаборатория")
-        print(f"Уровень лаборатории - {lab.level}\n")
+        print(f"Уровень лаборатории - {lab.level}")
+        print(f"🔬 Назначенный исследователь: {researcher_name}")
+        print()
 
         # Берём только исследования, которые стали видимыми
         visible_keys = [k for k in research_mgr.researches.keys() if research_mgr.is_visible(k, game_state)]
 
         if not visible_keys:
             print("📚 Нет доступных исследований.\n")
+            print("1. 📋 Управление персоналом (назначить исследователя)")
             print("0. ↩️ Вернуться в здания")
+            
             choice = input("Выберите действие: ").strip()
             if choice in ("0", "b", "B"):
                 break
+            elif choice == "1":
+                # Открываем меню управления персоналом
+                if "role_system" in game_state:
+                    role_system = game_state["role_system"]
+                    # Вызываем метод управления ролями (если он есть)
+                    # Или просто показываем информацию
+                    print("\n📋 Управление персоналом:")
+                    print("Назначьте исследователя в здании Лаборатории")
+                    press_enter_to_continue()
+                continue
             continue
 
         for i, key in enumerate(visible_keys, 1):
@@ -47,10 +72,16 @@ def manage_research(game_state):
                 print(f"   {r.description}")
                 print(f"   Стоимость: {cost['gold']} золота, {cost['crystals']} кристаллов")
                 print(f"   Требования: Лаборатория ур.{r.min_lab_level}")
+                
+                # Показываем статус доступности с причиной
                 if can:
-                    print("   [Доступно для исследования]")
+                    print("   [✅ Доступно для исследования]")
                 else:
-                    print(f"   [Недоступно: {msg}]")
+                    # Определяем, это из-за исследователя или других причин
+                    if "требуется назначить исследователя" in msg.lower():
+                        print("   [❌ Требуется исследователь]")
+                    else:
+                        print(f"   [❌ {msg}]")
             else:
                 # Максимум
                 print(f"{i}. ✅ {r.name}")
@@ -58,10 +89,19 @@ def manage_research(game_state):
                 print("   Достигнут максимальный уровень")
             print()
 
+        print("1. 📋 Управление персоналом (назначить исследователя)")
         print("0. ↩️ Вернуться в здания")
-        choice = input("Выберите исследование: ").strip()
+        
+        choice = input("Выберите исследование или действие: ").strip()
         if choice in ("0", "b", "B"):
             break
+        elif choice == "1":
+            if "role_system" in game_state:
+                print("\n📋 Управление персоналом:")
+                print("Назначьте исследователя в здании Лаборатории")
+                print("в меню управления зданиями -> Управление персоналом")
+                press_enter_to_continue()
+            continue
 
         if not choice.isdigit():
             press_enter_to_continue()
@@ -83,6 +123,17 @@ def manage_research(game_state):
         can, msg = research_mgr.can_research(key, game_state)
         if not can:
             print(f"❌ Нельзя изучить: {msg}")
+            
+            # Если причина - отсутствие исследователя, предлагаем назначить
+            if "требуется назначить исследователя" in msg.lower():
+                if "role_system" in game_state:
+                    print("\nХотите назначить исследователя сейчас? (да/нет)")
+                    assign_choice = input("> ").strip().lower()
+                    if assign_choice in ("да", "д", "y", "yes"):
+                        # Здесь можно вызвать меню назначения ролей
+                        print("Перейдите в меню управления зданиями -> Управление персоналом")
+                        press_enter_to_continue()
+            
             press_enter_to_continue()
             continue
 

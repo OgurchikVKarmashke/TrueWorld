@@ -26,13 +26,15 @@ def manage_summon(game_state):
         print(f"👥 Героев: {current_heroes:>2}/{max_heroes:>2}")
         print("═" * 40)
         
-        # Опции призыва
+        # Опции призыва (теперь призыв сразу без подтверждения)
         print("1. 👥 Обычный призыв")
         print("   💰 500 золота")
+        print("   [Призыв сразу без подтверждения]")
         print()
         
         print("2. 👥 Премиум призыв")
         print("   💎 300 кристаллов")
+        print("   [Призыв сразу без подтверждения]")
         print()
 
         print("3. 📊 Просмотр шансов")
@@ -116,7 +118,7 @@ def print_chances_table(calculate_func, rarity_names):
     print("└────────────┴───────────────┘")
 
 def summon_gold_option(game_state):
-    """Обычный призыв за золото"""
+    """Обычный призыв за золото - БЕЗ подтверждения"""
     # Проверяем лимит героев
     living_heroes = [h for h in game_state["heroes"] if h.is_alive]
     current_heroes = len(living_heroes)
@@ -138,11 +140,7 @@ def summon_gold_option(game_state):
         press_enter_to_continue()
         return
     
-    # Подтверждение призыва
-    if not confirm_summon("Обычный призыв", f"{cost} золота", "gold"):
-        return
-    
-    # Выполняем призыв
+    # ВЫПОЛНЯЕМ ПРИЗЫВ СРАЗУ (без подтверждения)
     loading_screen(3, "🌀 Призыв героя...")
     result = summon_hero(game_state)
     
@@ -154,7 +152,7 @@ def summon_gold_option(game_state):
     press_enter_to_continue()
 
 def summon_crystal_option(game_state):
-    """Премиум призыв за кристаллы"""
+    """Премиум призыв за кристаллы - БЕЗ подтверждения"""
     # Проверяем уровень башни
     if game_state.get("tower_level", 0) < 5:
         print_header("🔒 НЕДОСТУПНО")
@@ -183,11 +181,7 @@ def summon_crystal_option(game_state):
         press_enter_to_continue()
         return
     
-    # Подтверждение призыва
-    if not confirm_summon("Премиум призыв", f"{crystal_cost} кристаллов", "crystal"):
-        return
-    
-    # Выполняем премиум призыв
+    # ВЫПОЛНЯЕМ ПРИЗЫВ СРАЗУ (без подтверждения)
     loading_screen(4, "🌀 Премиум призыв...")
     result = summon_crystal_hero(game_state)
     
@@ -198,40 +192,7 @@ def summon_crystal_option(game_state):
     
     press_enter_to_continue()
 
-def confirm_summon(summon_type, cost, currency_type):
-    """Универсальная функция подтверждения призыва"""
-    print_header(f"🎯 ПОДТВЕРЖДЕНИЕ {summon_type.upper()}")
-    print(f"Стоимость: {cost}")
-    
-    if currency_type == "gold":
-        print("Шансы получения:")
-        print("★ - 80% (Обычный)")
-        print("★★ - 17% (Необычный)")
-        print("★★★ - 2.999% (Редкий)")
-        print("★★★★ - 0.001% (Эпический)")
-    else:
-        print("Шансы получения:")
-        print("★★★ - 92% (Редкий)")
-        print("★★★★ - 5% (Эпический)")
-        print("★★★★★ - 2.9999% (Легендарный)")
-        print("★★★★★★ - 0.0001% (Мифический)")
-    
-    print("═" * 40)
-    print("1. ✅ Подтвердить призыв")
-    print("0. ❌ Отменить")
-    print("═" * 40)
-    
-    try:
-        confirm = input("🎯 Ваш выбор: ").strip()
-        if confirm != "1":
-            print("❌ Призыв отменён")
-            press_enter_to_continue()
-            return False
-        return True
-    except (ValueError, KeyboardInterrupt):
-        print("❌ Призыв отменён")
-        press_enter_to_continue()
-        return False
+# Функцию confirm_summon можно удалить или оставить закомментированной
 
 def show_summon_result(hero_data):
     """Показывает результат призыва"""
@@ -266,4 +227,4 @@ def get_rarity_name(star_level):
         6: "Мифический",
         7: "Божественный"
     }
-    return rarity_names.get(star_level, "Неизвестно")
+    return rarity_names.get(star_level, "ERROR!")

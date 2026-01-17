@@ -9,11 +9,11 @@ def manage_roles(game_state):
         print("❌ Система ролей недоступна!")
         print()
         print("Для назначения ролей необходимо построить:")
-        print("🍳 Столовую (доступна с 7 этажа)")
-        print("⚒️ Кузницу (доступна с 10 этажа)") 
+        print("🍳 Столовую (доступна с 3 этажа)")
         print("🔬 Лабораторию (доступна с 5 этажа)")
+        print("⚒️ Кузницу (доступна с 7 этажа)")
         print()
-        print("Отправляйтесь в башню, чтобы открыть новые этажи!")
+        print("Взбирайтесь по башне, чтобы разблокировать новые функции!")
         press_enter_to_continue()
         return
     
@@ -24,25 +24,34 @@ def manage_roles(game_state):
         print_header("👥 Управление ролями героев")
         
         # Используем существующий метод get_assigned_heroes()
-        assigned_heroes = role_system.get_assigned_heroes()  # Этот метод существует!
+        assigned_heroes = role_system.get_assigned_heroes()
         available_heroes = role_system.get_available_heroes()
         
         print("📋 Текущие назначения:")
         print("═" * 40)
         
+        # Изменим порядок ролей:
+        roles_in_order = [
+            ('cook', '🍳 Повар', 'Увеличивает получаемый опыт'),
+            ('researcher', '🔬 Исследователь', 'Ускоряет исследования'),
+            ('blacksmith', '⚒️ Кузнец', 'Увеличивает шанс успеха крафта')
+        ]
+        
         has_assignments = False
-        for role_name, role_info in role_system.roles.items():
+        for i, (role_name, title, bonus) in enumerate(roles_in_order, 1):
+            role_info = role_system.roles[role_name]
             building = game_state["buildings"].get_building(role_info['building'])
+            
             if building.built:
                 # Ищем назначенного героя для этого здания
                 assigned_hero = assigned_heroes.get(role_info['building'])
                 if assigned_hero:
-                    print(f"{role_info['title']}: ✅ {assigned_hero.name}")
+                    print(f"{i}. {title}: ✅ {assigned_hero.name} ({assigned_hero.level} ур.)")
                     has_assignments = True
                 else:
-                    print(f"{role_info['title']}: ❌ Не назначен")
+                    print(f"{i}. {title}: ❌ Не назначен")
             else:
-                print(f"{role_info['title']}: 🔒 Здание не построено")
+                print(f"{i}. {title}: 🔒 Здание не построено")
         
         print()
         print("👥 Доступные герои:")
@@ -50,7 +59,11 @@ def manage_roles(game_state):
         
         if available_heroes:
             for i, hero in enumerate(available_heroes, 1):
-                print(f"{i}. {hero.name} (Ур. {hero.level})")
+                role = role_system.get_hero_role(hero)
+                if role:
+                    print(f"{i}. {hero.name} (Ур. {hero.level}) - ⚠️ Уже назначен как {role}")
+                else:
+                    print(f"{i}. {hero.name} (Ур. {hero.level}) - ✅ Свободен")
         else:
             print("❌ Нет доступных героев")
             print("Все герои заняты в группах или на других ролях")
@@ -70,7 +83,7 @@ def manage_roles(game_state):
         if choice == 0:
             break
         elif choice == 1:
-            assign_hero_to_role(game_state, role_system, available_heroes)
+            assign_hero_to_role(game_state, role_system, available_heroes, roles_in_order)
         elif choice == 2:
             remove_hero_from_role(game_state, role_system, assigned_heroes)
         else:
@@ -93,7 +106,7 @@ def init_role_system(game_state):
     
     return game_state["role_system"]
 
-def assign_hero_to_role(game_state, role_system, available_heroes):
+def assign_hero_to_role(game_state, role_system, available_heroes, roles_in_order=None):
     """Назначение героя на роль"""
     if not available_heroes:
         print("❌ Нет доступных героев для назначения!")
@@ -104,12 +117,34 @@ def assign_hero_to_role(game_state, role_system, available_heroes):
     
     # Выбор роли
     print("Выберите роль:")
+    
+    # Используем переданный порядок ролей или стандартный
+    if roles_in_order is None:
+        roles_in_order = [
+            ('cook', '🍳 Повар', 'Увеличивает получаемый опыт'),
+            ('researcher', '🔬 Исследователь', 'Ускоряет исследования'),
+            ('blacksmith', '⚒️ Кузнец', 'Увеличивает шанс успеха крафта')
+        ]
+    
     roles_list = []
-    for i, (role_name, role_info) in enumerate(role_system.roles.items(), 1):
+    for i, (role_name, title, bonus) in enumerate(roles_in_order, 1):
+        role_info = role_system.roles[role_name]
         building = game_state["buildings"].get_building(role_info['building'])
+        
         if building.built:
-            print(f"{i}. {role_info['title']} - {role_info['bonus']}")
-            roles_list.append((role_name, role_info))
+            # Проверяем, занята ли уже эта роль
+            assigned_hero = None
+            for building_name, hero in role_system.get_assigned_heroes().items():
+                if building_name == role_info['building']:
+                    assigned_hero = hero
+                    break
+            
+            if assigned_hero:
+                print(f"{i}. {title} - ⚠️ Занято: {assigned_hero.name}")
+            else:
+                print(f"{i}. {title} - ✅ Свободно: {bonus}")
+            
+            roles_list.append((role_name, role_info, title, assigned_hero))
     
     if not roles_list:
         print("❌ Нет доступных ролей!")
@@ -125,23 +160,57 @@ def assign_hero_to_role(game_state, role_system, available_heroes):
         press_enter_to_continue()
         return
     
-    role_name, role_info = roles_list[role_choice - 1]
+    role_name, role_info, title, assigned_hero = roles_list[role_choice - 1]
     
-    # Выбор героя
-    print(f"\nВыберите героя для роли {role_info['title']}:")
-    for i, hero in enumerate(available_heroes, 1):
-        print(f"{i}. {hero.name} (Ур. {hero.level})")
+    # Если роль уже занята, спрашиваем подтверждение на замену
+    if assigned_hero:
+        print(f"\n⚠️ Роль {title} уже занята {assigned_hero.name}")
+        print("1. Заменить героя")
+        print("2. Отмена")
+        
+        try:
+            replace_choice = int(input("🎯 Ваш выбор: "))
+            if replace_choice != 1:
+                print("❌ Отмена назначения!")
+                press_enter_to_continue()
+                return
+        except ValueError:
+            print("❌ Отмена!")
+            press_enter_to_continue()
+            return
+    
+    # Выбор героя (показываем только доступных)
+    available_for_role = []
+    for hero in available_heroes:
+        # Пропускаем героя, который уже на этой роли (если заменяем)
+        if assigned_hero and id(hero) == id(assigned_hero):
+            continue
+        if role_system.is_hero_available(hero):
+            available_for_role.append(hero)
+    
+    if not available_for_role:
+        print("❌ Нет доступных героев для этой роли!")
+        press_enter_to_continue()
+        return
+    
+    print(f"\nВыберите героя для роли {title}:")
+    for i, hero in enumerate(available_for_role, 1):
+        current_role = role_system.get_hero_role(hero)
+        if current_role:
+            print(f"{i}. {hero.name} (Ур. {hero.level}) - ⚠️ Текущая роль: {current_role}")
+        else:
+            print(f"{i}. {hero.name} (Ур. {hero.level}) - ✅ Свободен")
     
     try:
         hero_choice = int(input("🎯 Выберите героя: "))
-        if not 1 <= hero_choice <= len(available_heroes):
+        if not 1 <= hero_choice <= len(available_for_role):
             raise ValueError
     except ValueError:
         print("❌ Неверный выбор!")
         press_enter_to_continue()
         return
     
-    hero = available_heroes[hero_choice - 1]
+    hero = available_for_role[hero_choice - 1]
     
     # Назначение
     success, message = role_system.assign_hero(role_name, hero)
@@ -172,7 +241,7 @@ def remove_hero_from_role(game_state, role_system, assigned_heroes):
         return
     
     for i, (role_name, role_info, hero) in enumerate(assignments, 1):
-        print(f"{i}. {role_info['title']}: {hero.name}")
+        print(f"{i}. {role_info['title']}: {hero.name} (Ур. {hero.level})")
     
     try:
         choice = int(input("🎯 Выберите назначение для удаления: "))
@@ -184,6 +253,9 @@ def remove_hero_from_role(game_state, role_system, assigned_heroes):
         return
     
     role_name, role_info, hero = assignments[choice - 1]
-    role_system.remove_hero_from_role(hero)
-    print(f"✅ {hero.name} снят с роли {role_info['title']}!")
+    removed = role_system.remove_hero_from_role(hero)
+    if removed:
+        print(f"✅ {hero.name} снят с роли {role_info['title']}!")
+    else:
+        print(f"❌ Не удалось снять {hero.name} с роли!")
     press_enter_to_continue()

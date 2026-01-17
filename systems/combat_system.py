@@ -7,7 +7,7 @@ from systems.difficulty_system import DifficultySystem
 from systems.combat_modifiers import COMBAT_MODIFIERS
 from game_data.monsters_data import MONSTER_BASE_STATS, BOSS_STATS, MONSTER_SPAWN_CHANCES, MONSTER_COUNT_BY_FLOOR
 from game_data.bosses_data import BOSS_ABILITIES
-from game_data.game_state import init_save_system
+from app import app
 
 class Monster:
     def __init__(self, name, level, monster_type="normal"):
@@ -23,18 +23,20 @@ class Monster:
         """Рассчитывает статы на основе типа и уровня"""
         if self.monster_type == "boss" and self.name in BOSS_STATS:
             boss_data = BOSS_STATS[self.name]
-            base_stats = MONSTER_BASE_STATS.get("Орк", {})  # используем орка как базу для боссов
+            base_stats = MONSTER_BASE_STATS.get("Орк", {})
             
             self.health_max = int((base_stats.get("health_per_level", 10) * self.level) * boss_data["health_multiplier"])
             self.attack = int((base_stats.get("attack_per_level", 3) * self.level) * boss_data["attack_multiplier"])
             self.defense = int((base_stats.get("defense_per_level", 1) * self.level) * boss_data["defense_multiplier"])
-            self.exp_value = int((base_stats.get("exp_per_level", 15) * self.level) * boss_data["exp_multiplier"])
+            # УВЕЛИЧИМ: опыт для боссов
+            self.exp_value = int(500 * (self.level ** 0.8) * boss_data["exp_multiplier"])
         else:
             monster_data = MONSTER_BASE_STATS.get(self.name, {})
             self.health_max = monster_data.get("health_per_level", 8) * self.level
             self.attack = monster_data.get("attack_per_level", 2) * self.level
             self.defense = monster_data.get("defense_per_level", 1) * self.level
-            self.exp_value = monster_data.get("exp_per_level", 10) * self.level
+            # УВЕЛИЧИМ: опыт для обычных монстров
+            self.exp_value = int(100 * (self.level ** 0.7))
 
     def take_damage(self, damage):
         actual_damage = max(1, damage - self.defense)
@@ -312,6 +314,18 @@ class Combat:
                 break
 
         victory = any(h.is_alive for h in self.heroes)
+        
+        # ВАЖНО: Распределяем опыт между выжившими героями ПЕРЕД выдачей наград
+        if victory and self.total_exp_earned > 0:
+            living_heroes = [h for h in self.heroes if h.is_alive]
+            if living_heroes:
+                exp_per_hero = self.total_exp_earned // len(living_heroes)
+                exp_remainder = self.total_exp_earned % len(living_heroes)
+                
+                for i, hero in enumerate(living_heroes):
+                    # Даем остаток опыта первому герою
+                    hero_exp = exp_per_hero + (1 if i == 0 and exp_remainder > 0 else 0)
+                    hero.add_experience(hero_exp)  # Просто начисляем без вывода
         
         # Выдаем награды только при победе
         if victory:

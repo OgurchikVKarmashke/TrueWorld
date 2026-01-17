@@ -1,0 +1,60 @@
+📁 TrueWorld_Game/
+├── 📁 game_data/                 # Данные игры
+│   ├── game_state_backup.py     # Состояние игры (деактивировано и заменено app)
+│   ├── research_system.py       # Исследования
+│   ├── save_system.py           # Система сохранений
+│   ├── tower_rewards.py         # Награды башни
+│   ├── monsters_data.py         # Данные монстров
+│   ├── bosses_data.py           # Данные боссов
+│   ├── name_library.py          # Генератор имен
+│   └── 
+│
+├── 📁 systems/                  # Игровые системы
+│   ├── hero_system.py           # Герои
+│   ├── character_traits_system.py  # Черты характера
+│   ├── party_system.py          # Группы
+│   ├── relationship_system.py   # Отношения
+│   ├── role_system.py           # Роли героев
+│   ├── summon_system.py         # Призыв героев
+│   ├── synthesis_room_system.py # Синтез героев
+│   ├── building_system.py       # Здания
+│   ├── currency.py              # Валюта (кошелек)
+│   ├── combat_system.py         # Боевая система
+│   ├── difficulty_system.py     # Сложность
+│   ├── tower_system.py          # Башня испытаний
+│   ├── items_system.py          # Предметы
+│   ├── storage_system.py        # Склад
+│   ├── crafting_system.py       # Крафтинг
+│   ├── achievement_system.py    # Система достижений
+│   └── 📁 combat_modifiers/     # Модификаторы боя
+│       ├── __init__.py
+│       ├── traps.py
+│       └── weather.py
+│
+├── 📁 ui/                       # Пользовательский интерфейс
+│   ├── ui_utils.py              # Утилиты UI
+│   ├── visual_effects.py        # Визуальные эффекты
+│   ├── icons.py                # Файл для починки отображения эмодзи - ASCII
+│   ├── tower_menu.py           # Меню башни
+│   ├── tower_ui.py             # UI башни
+│   ├── achievements_menu.py    # Достижения
+│   ├── buildings_menu.py       # Меню зданий
+│   ├── building_manager.py     # Управление зданиями
+│   ├── research_manager.py     # Исследования (UI)
+│   ├── heroes_menu.py          # Герои (меню)
+│   ├── party_editor.py         # Редактор групп
+│   ├── party_manager.py        # Просмотр героев
+│   ├── role_manager.py         # Управление ролями
+│   ├── summon_room_menu.py     # Зал призыва
+│   ├── synthesis_room_menu.py  # Комната синтеза
+│   ├── save_menu.py            # Сохранения
+│   ├── storage_ui.py           # Склад (UI)
+│   └── forge_ui.py             # Кузница (UI)
+│   
+├── 📁 saves/                    # Сохранения (создается автоматически)
+│   ├─── save_1.json
+│   └─── achievement.json (вроде так)
+│
+├── 📄 README.md                 # Документация
+├── main_loop.py        # Главный цикл
+└── app.py              # замена game_state

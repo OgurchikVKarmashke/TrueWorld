@@ -12,6 +12,7 @@ class Building:
         self.unlock_floor = unlock_floor
         self.unlocked = built
         self.initially_built = built
+        self.assigned_hero = None
 
     def is_available(self, tower_level):
         return tower_level >= self.unlock_floor
@@ -39,6 +40,43 @@ class Building:
     def __str__(self):
         status = "✅ Построено" if self.built else "🚧 Не построено"
         return f"{self.name} (Ур. {self.level}) - {status}"
+
+    def to_dict(self):
+        """Конвертирует здание в словарь для сохранения"""
+        return {
+            'name': self.name,
+            'description': self.description,
+            'level': self.level,
+            'max_level': self.max_level,
+            'built': self.built,
+            'unlock_floor': self.unlock_floor,
+            'unlocked': self.unlocked,
+            'assigned_hero_id': id(self.assigned_hero) if self.assigned_hero else None
+        }
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        """Создает здание из словаря"""
+        building = cls(
+            data['name'],
+            data['description'],
+            data['max_level'],
+            {},  # cost_table будет установлен отдельно
+            data['built'],
+            data['unlock_floor']
+        )
+        building.level = data['level']
+        building.unlocked = data['unlocked']
+        
+        # Восстанавливаем назначенного героя
+        hero_id = data.get('assigned_hero_id')
+        if hero_id and all_heroes:
+            for hero in all_heroes:
+                if id(hero) == hero_id:
+                    building.assigned_hero = hero
+                    break
+        
+        return building
 
 # Таблицы стоимостей для каждого здания
 DORMITORY_COSTS = {
@@ -76,15 +114,16 @@ ELEVATION_COSTS = {
 }
 
 class Dormitory(Building):
-    def __init__(self):
-        super().__init__(
-            "Общежитие", 
-            "Увеличивает лимит героев", 
-            10,
-            DORMITORY_COSTS,
-            built=True,
-            unlock_floor=0
-        )
+    def __init__(self, name=None, description=None, max_level=10, cost_table=None, built=True, unlock_floor=0):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Общежитие"
+        description = description or "Увеличивает лимит героев"
+        max_level = max_level if max_level is not None else 10
+        cost_table = cost_table or DORMITORY_COSTS
+        built = built if built is not None else True
+        unlock_floor = unlock_floor if unlock_floor is not None else 0
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
         self.base_capacity = 5
 
     def effect(self):
@@ -93,56 +132,90 @@ class Dormitory(Building):
     
     def get_capacity(self):
         return self.base_capacity + ((self.level - 1) * 2)
+    
+    def to_dict(self):
+        return super().to_dict()
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        # Создаем таблицу стоимостей для этого конкретного здания
+        cost_table = DORMITORY_COSTS.copy()
+        return super().from_dict(data, all_heroes)
 
 class SummonHall(Building):
-    def __init__(self):
-        super().__init__(
-            "Зал призыва героев",
-            "Постоянное здание для призыва новых героев",
-            1,
-            {1: 0},  # Бесплатное
-            built=True,
-            unlock_floor=0
-        )
+    def __init__(self, name=None, description=None, max_level=1, cost_table=None, built=True, unlock_floor=0):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Зал призыва героев"
+        description = description or "Постоянное здание для призыва новых героев"
+        max_level = max_level if max_level is not None else 1
+        cost_table = cost_table or {1: 0}  # Бесплатное
+        built = built if built is not None else True
+        unlock_floor = unlock_floor if unlock_floor is not None else 0
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
 
     def effect(self):
         return "Базовая функция призыва героев"
+ 
+    def to_dict(self):
+        return super().to_dict()
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        return super().from_dict(data, all_heroes)
 
 class SynthesisRoom(Building):
-    def __init__(self):
-        super().__init__(
-            "Комната синтеза",
-            "Позволяет объединять героев для повышения уровня",
-            10,
-            SYNTHESIS_COSTS,
-            built=True,
-            unlock_floor=0
-        )
+    def __init__(self, name=None, description=None, max_level=10, cost_table=None, built=True, unlock_floor=0):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Комната синтеза"
+        description = description or "Позволяет объединять героев для повышения уровня"
+        max_level = max_level if max_level is not None else 10
+        cost_table = cost_table or SYNTHESIS_COSTS
+        built = built if built is not None else True
+        unlock_floor = unlock_floor if unlock_floor is not None else 0
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
 
     def effect(self):
         return f"Макс. уровень для синтеза: {10 + self.level * 5}"
+            
+    def to_dict(self):
+        return super().to_dict()
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        return super().from_dict(data, all_heroes)
 
 class Storage(Building):
-    def __init__(self):
-        super().__init__(
-            "Склад",
-            "Позволяет хранить предметы",
-            10,
-            STORAGE_COSTS,
-            built=True,
-            unlock_floor=0
-        )
+    def __init__(self, name=None, description=None, max_level=10, cost_table=None, built=True, unlock_floor=0):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Склад"
+        description = description or "Позволяет хранить предметы"
+        max_level = max_level if max_level is not None else 10
+        cost_table = cost_table or STORAGE_COSTS
+        built = built if built is not None else True
+        unlock_floor = unlock_floor if unlock_floor is not None else 0
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
+            
+    def to_dict(self):
+        return super().to_dict()
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        return super().from_dict(data, all_heroes)
         
 class Laboratory(Building):
-    def __init__(self):
-        super().__init__(
-            "Лаборатория",
-            "Позволяет исследовать новые технологии",
-            5,
-            LABORATORY_COSTS,
-            built=False,
-            unlock_floor=5
-        )
+    def __init__(self, name=None, description=None, max_level=5, cost_table=None, built=False, unlock_floor=5):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Лаборатория"
+        description = description or "Позволяет исследовать новые технологии"
+        max_level = max_level if max_level is not None else 5
+        cost_table = cost_table or LABORATORY_COSTS
+        built = built if built is not None else False
+        unlock_floor = unlock_floor if unlock_floor is not None else 5
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
         self.current_research = None
         self.research_progress = 0
 
@@ -152,40 +225,72 @@ class Laboratory(Building):
         if self.current_research:
             return f"Исследуется: {self.current_research} ({self.research_progress}%)"
         return "Готова к исследованиям"
+    
+    def to_dict(self):
+        data = super().to_dict()
+        data.update({
+            'current_research': self.current_research,
+            'research_progress': self.research_progress
+        })
+        return data
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        building = super().from_dict(data, all_heroes)
+        building.current_research = data.get('current_research')
+        building.research_progress = data.get('research_progress', 0)
+        return building
 
 class Canteen(Building):
-    def __init__(self):
-        super().__init__(
-            "Столовая",
-            "Увеличивает эффективность героев",
-            10,
-            CANTEEN_COSTS,
-            built=False,
-            unlock_floor=3
-        )
-        self.assigned_cook = None
+    def __init__(self, name=None, description=None, max_level=10, cost_table=None, built=False, unlock_floor=3):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Столовая"
+        description = description or "Увеличивает эффективность героев"
+        max_level = max_level if max_level is not None else 10
+        cost_table = cost_table or CANTEEN_COSTS
+        built = built if built is not None else False
+        unlock_floor = unlock_floor if unlock_floor is not None else 3
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
+        # assinged_hero уже есть в родительском классе
+    
+    def to_dict(self):
+        return super().to_dict()
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        return super().from_dict(data, all_heroes)
 
 class Forge(Building):
-    def __init__(self):
-        super().__init__(
-            "Кузница",
-            "Открывает систему крафта",
-            8,
-            FORGE_COSTS,
-            built=False,
-            unlock_floor=7
-        )
+    def __init__(self, name=None, description=None, max_level=8, cost_table=None, built=False, unlock_floor=7):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Кузница"
+        description = description or "Открывает систему крафта"
+        max_level = max_level if max_level is not None else 8
+        cost_table = cost_table or FORGE_COSTS
+        built = built if built is not None else False
+        unlock_floor = unlock_floor if unlock_floor is not None else 7
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
+    
+    def to_dict(self):
+        return super().to_dict()
+    
+    @classmethod
+    def from_dict(cls, data, all_heroes=None):
+        return super().from_dict(data, all_heroes)
 
 class ElevationRoom(Building):
-    def __init__(self):
-        super().__init__(
-            "Комната возвышения",
-            "Позволяет повышать звёздность героев",
-            10,
-            ELEVATION_COSTS,
-            built=False,
-            unlock_floor=10
-        )
+    def __init__(self, name=None, description=None, max_level=10, cost_table=None, built=False, unlock_floor=10):
+        # Используем переданные значения или значения по умолчанию
+        name = name or "Комната возвышения"
+        description = description or "Позволяет повышать звёздность героев"
+        max_level = max_level if max_level is not None else 10
+        cost_table = cost_table or ELEVATION_COSTS
+        built = built if built is not None else False
+        unlock_floor = unlock_floor if unlock_floor is not None else 10
+        
+        super().__init__(name, description, max_level, cost_table, built, unlock_floor)
 
 class BuildingManager:
     def __init__(self):
@@ -239,3 +344,45 @@ class BuildingManager:
     
     def get_built_buildings(self):
         return {key: building for key, building in self.buildings.items() if building.built}
+
+    def to_dict(self, all_heroes=None):
+        """Сохраняет все здания"""
+        buildings_data = {}
+        for key, building in self.buildings.items():
+            buildings_data[key] = {
+                'class': building.__class__.__name__,
+                'data': building.to_dict()
+            }
+        return buildings_data
+    
+    def from_dict(self, buildings_data, all_heroes):
+        """Восстанавливает все здания"""
+        if not buildings_data:
+            return
+        
+        # Маппинг имен классов на классы
+        building_classes = {
+            'Dormitory': Dormitory,
+            'Laboratory': Laboratory,
+            'Canteen': Canteen,
+            'Forge': Forge,
+            'SummonHall': SummonHall,
+            'SynthesisRoom': SynthesisRoom,
+            'Storage': Storage,
+            'ElevationRoom': ElevationRoom
+        }
+        
+        for key, building_info in buildings_data.items():
+            class_name = building_info['class']
+            building_data = building_info['data']
+            
+            if class_name in building_classes:
+                building_class = building_classes[class_name]
+                try:
+                    # Создаем здание с параметрами из сохранения
+                    building = building_class.from_dict(building_data, all_heroes)
+                    self.buildings[key] = building
+                except Exception as e:
+                    print(f"Ошибка при восстановлении здания {key} ({class_name}): {e}")
+                    # Создаем дефолтное здание если не получилось восстановить
+                    self.buildings[key] = building_class()

@@ -16,6 +16,12 @@ STAR_LIMITS = {
     7: (101, 120)
 }
 
+# НОВАЯ ФУНКЦИЯ: Расчет опыта для следующего уровня (квадратичная формула)
+def calculate_exp_requirement(level):
+    """Рассчитывает необходимый опыт для достижения уровня"""
+    # Формула: 100 * уровень^1.5 (дает постепенное увеличение)
+    return int(100 * (level ** 1.5))
+
 class Hero:
     def __init__(self, name=None, star=1, level=1):
         self.name = name if name else generate_korean_name()
@@ -76,42 +82,67 @@ class Hero:
         return "Характеристики скрыты (исследуйте 'Понимание героев')"
 
     def calculate_exp_to_next_level(self):
-        return self.level * 100
+        """Рассчитывает опыт, необходимый для следующего уровня"""
+        return calculate_exp_requirement(self.level)
 
     def add_experience(self, amount):
+        """Добавляет опыт герою с возможным повышением уровня"""
         if self.level >= STAR_LIMITS[self.star][1]:
             return f"{self.name} достиг максимального уровня для своей звёздности!"
         
-        self.experience += amount
-        result = []
-        while (self.experience >= self.exp_to_next_level and 
-               self.level < STAR_LIMITS[self.star][1]):
-            self.level_up()
-            result.append(f"{self.name} достиг {self.level} уровня!")
+        self.experience += amount  # <-- Вот здесь должно быть СЛОЖЕНИЕ
+        level_ups = 0
         
-        return "\n".join(result) if result else f"{self.name} получил {amount} опыта."
+        # Проверяем, достаточно ли опыта для повышения уровня
+        while self.experience >= self.exp_to_next_level and self.level < STAR_LIMITS[self.star][1]:
+            self.level_up()
+            level_ups += 1
+        
+        # Формируем сообщение
+        if level_ups > 0:
+            return f"{self.name} получил {amount} опыта и повысил уровень до {self.level}!"
+        else:
+            exp_left = self.exp_to_next_level - self.experience
+            return f"{self.name} получил {amount} опыта. До следующего уровня: {exp_left}"
 
     def level_up(self):
+        """Повышает уровень героя"""
+        old_level = self.level
         self.level += 1
-        self.experience -= self.exp_to_next_level
         
-        old_max_health = self.health_max
-        old_max_mana = self.mana_max
+        # Вычитаем затраченный опыт
+        self.experience -= calculate_exp_requirement(old_level)
         
+        # Сохраняем проценты здоровья и маны
+        old_health_percent = self.health_current / self.health_max if self.health_max > 0 else 1.0
+        old_mana_percent = self.mana_current / self.mana_max if self.mana_max > 0 else 1.0
+        
+        # Пересчитываем статы
         self.health_max = self._calculate_max_health()
         self.mana_max = self._calculate_max_mana()
         self.attack = self._calculate_attack()
         self.defense = self._calculate_defense()
         
-        if old_max_health > 0:
-            health_percentage = self.health_current / old_max_health
-            self.health_current = int(self.health_max * health_percentage)
+        # Восстанавливаем проценты здоровья и маны
+        self.health_current = int(self.health_max * old_health_percent)
+        self.mana_current = int(self.mana_max * old_mana_percent)
         
-        if old_max_mana > 0:
-            mana_percentage = self.mana_current / old_max_mana
-            self.mana_current = int(self.mana_max * mana_percentage)
-        
+        # Обновляем требуемый опыт для следующего уровня
         self.exp_to_next_level = self.calculate_exp_to_next_level()
+
+    def get_experience_bar(self, width=20):
+        """Возвращает строку с прогресс-баром опыта"""
+        if self.level >= STAR_LIMITS[self.star][1]:
+            return "│" + "█" * width + "│ MAX"
+        
+        progress = self.experience / self.exp_to_next_level
+        filled = int(width * progress)
+        empty = width - filled
+        
+        bar = "│" + "█" * filled + "░" * empty + "│"
+        percent = f" {progress*100:.1f}%"
+        
+        return bar + percent
 
     def can_star_up(self):
         return self.level >= STAR_LIMITS[self.star][1] and self.star < 7
@@ -141,9 +172,10 @@ class Hero:
             return VisualEffects.format_hero_display(self)
         except Exception as e:
             # Фолбэк на случай ошибок с цветами
+            exp_bar = self.get_experience_bar(10)
             return (f"★{'★' * (self.star - 1)}{'☆' * (7 - self.star)} {self.name} (Ур. {self.level}) {self.character}\n"
                     f"❤️ {self.health_current}/{self.health_max} | ✨ {self.mana_current}/{self.mana_max}\n"
-                    f"EXP: {self.experience}/{self.exp_to_next_level}")
+                    f"EXP: {self.experience}/{self.exp_to_next_level} [{exp_bar}]")
 
     def get_party_bonus(self, party_heroes):
         """Возвращает бонус от совместимости с другими героями группы"""
