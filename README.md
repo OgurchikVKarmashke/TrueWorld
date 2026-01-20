@@ -18,3 +18,8 @@ https://mangabuddy.com/pick-me-up
         ```
 **Via the executable file (Windows):**
 Just run ' TRUEWORLD.bat`List of exceptions
+5. If the emoticons are not displayed and strange symbols appear instead, try the following steps:
+ - Right-click on the console window title
+ - "Properties"
+ - "Font" tab
+ - Select "Lucida Console"
