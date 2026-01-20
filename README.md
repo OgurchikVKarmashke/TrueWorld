@@ -2,6 +2,8 @@
 TrueWorld is a game that I am developing, based on information from the "Pick Me Up!"manga. Even if the source code is written by AI, I've always wanted to get a little touch on the game itself.
 Link to manhwa in English:
 https://mangabuddy.com/pick-me-up
+Link to manhwa in Russian:
+https://remanga.org/manga/the-pick-me-up_/main
 
 ## Installation and launch
 
