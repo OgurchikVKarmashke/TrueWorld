@@ -12,6 +12,7 @@ https://remanga.org/manga/the-pick-me-up_/main
 3. Install the dependencies: (skip it for now)
     ```bash
     pip install -r requirements.txt
+    python -m pip install colorama
     ```
 4. Launch the game:
 **Using the command line:**
