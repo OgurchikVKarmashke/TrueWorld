@@ -17,4 +17,6 @@ https://mangabuddy.com/pick-me-up
         python main_loop.py
         ```
 **Via the executable file (Windows):**
-Just run ' TRUEWORLD.bat`List of exceptions
+First, try double-clicking TRUEWORLD.exe.
+
+If the .exe file doesn't launch (e.g., due to missing dependencies or security warnings), try double-clicking TRUEWORLD.bat instead.
