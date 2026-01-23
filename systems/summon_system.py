@@ -16,7 +16,14 @@ def summon_hero(game_state):
     star_level = calculate_star_chance()
     new_hero = Hero(star=star_level)
     game_state["heroes"].append(new_hero)
-
+    
+    # АВТОСОХРАНЕНИЕ
+    if "save_system" in game_state:
+        try:
+            game_state["save_system"].save_game(game_state, 1)
+        except Exception:
+            pass  # Игнорируем ошибки сохранения
+    
     return {
         'name': new_hero.name,
         'star': star_level,
@@ -36,12 +43,19 @@ def summon_crystal_hero(game_state):
     new_hero = Hero(star=star_level)
     game_state["heroes"].append(new_hero)
     
+    # АВТОСОХРАНЕНИЕ
+    if "save_system" in game_state:
+        try:
+            game_state["save_system"].save_game(game_state, 1)
+        except Exception:
+            pass  # Игнорируем ошибки сохранения
+    
     return {
         'name': new_hero.name,
         'star': star_level,
         'level': 1
     }
-
+    
 def calculate_star_chance():
     """
     Система шансов звёзд для обычного призыва:

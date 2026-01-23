@@ -2,12 +2,36 @@
 import json
 import os
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 class SaveSystem:
     def __init__(self, save_dir="saves"):
         self.save_dir = save_dir
         os.makedirs(save_dir, exist_ok=True)
+
+    def validate_save_data(self, save_data: Dict) -> bool:
+        """Проверяет корректность данных сохранения"""
+        required_fields = [
+            "tower_level", "max_tower_floor", "heroes",
+            "wallet", "buildings", "research"
+        ]
+        
+        for field in required_fields:
+            if field not in save_data:
+                print(f"❌ В сохранении отсутствует поле: {field}")
+                return False
+        
+        # Проверяем типы данных
+        if not isinstance(save_data["tower_level"], int) or save_data["tower_level"] < 1:
+            print(f"❌ Неверное значение tower_level: {save_data['tower_level']}")
+            return False
+        
+        # Проверяем героев
+        if not isinstance(save_data["heroes"], list):
+            print("❌ Поле heroes должно быть списком")
+            return False
+        
+        return True
     
     # ===== СОВМЕСТИМЫЕ МЕТОДЫ =====
     
@@ -18,12 +42,32 @@ class SaveSystem:
         """
         return self._save_from_dict(game_state, slot)
     
-    def load_game(self, game_state, slot=1):
-        """
-        Старый метод для обратной совместимости
-        Загружает игру в словарь game_state
-        """
-        return self._load_into_dict(game_state, slot)
+    def load_game(self, slot: int = 1) -> Optional[Dict]:
+        """Загружает игру из указанного слота"""
+        filepath = self._get_save_path(slot)
+        
+        if not os.path.exists(filepath):
+            print(f"❌ Файл сохранения {slot} не найден")
+            return None
+        
+        try:
+            with open(filepath, 'r', encoding='utf-8') as f:
+                save_data = json.load(f)
+            
+            # НОВОЕ: Валидация данных
+            if not self.validate_save_data(save_data):
+                print("❌ Ошибка валидации данных сохранения")
+                return None
+            
+            print(f"✅ Сохранение {slot} загружено")
+            return save_data
+            
+        except json.JSONDecodeError:
+            print(f"❌ Ошибка чтения JSON в сохранении {slot}")
+            return None
+        except Exception as e:
+            print(f"❌ Ошибка загрузки сохранения: {e}")
+            return None
     
     # ===== НОВЫЕ МЕТОДЫ ДЛЯ App =====
     
@@ -242,27 +286,29 @@ class SaveSystem:
     # ===== СЕРИАЛИЗАЦИЯ =====
     
     def _serialize_heroes(self, heroes):
-        """Преобразует героев в сериализуемый формат"""
         serialized = []
         for hero in heroes:
-            serialized.append({
+            hero_data = {
                 "name": hero.name,
                 "star": hero.star,
                 "level": hero.level,
                 "experience": hero.experience,
-                "health_current": hero.health_current,
-                "health_max": hero.health_max,
-                "mana_current": hero.mana_current,
-                "mana_max": hero.mana_max,
-                "is_alive": hero.is_alive,
-                "character": hero.character,
+                "exp_to_next_level": hero.exp_to_next_level,
                 "strength": hero.strength,
                 "dexterity": hero.dexterity,
                 "constitution": hero.constitution,
                 "intelligence": hero.intelligence,
-                "wisdom": hero.wisdom,
-                "charisma": hero.charisma
-            })
+                "health_max": hero.health_max,
+                "health_current": hero.health_current,
+                "mana_max": hero.mana_max,
+                "mana_current": hero.mana_current,
+                "attack": hero.attack,
+                "defense": hero.defense,
+                "character": hero.character,
+                "is_alive": hero.is_alive,
+                "battle_log": hero.battle_log,
+            }
+            serialized.append(hero_data)
         return serialized
     
     def _serialize_buildings_from_state(self, game_state):
@@ -404,8 +450,6 @@ class SaveSystem:
             hero.dexterity = data.get("dexterity", 5)
             hero.constitution = data.get("constitution", 5)
             hero.intelligence = data.get("intelligence", 5)
-            hero.wisdom = data.get("wisdom", 5)
-            hero.charisma = data.get("charisma", 5)
             hero.exp_to_next_level = hero.calculate_exp_to_next_level()
             heroes.append(hero)
         return heroes

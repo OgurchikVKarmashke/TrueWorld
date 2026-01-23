@@ -2,6 +2,7 @@
 # ui.synthesis_room_menu.py
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen
 from systems.party_system import PartySystem
+from systems.hero_system import calculate_exp_requirement
 from systems.synthesis_room_system import synthesize_heroes, get_available_heroes
 from ui.visual_effects import VisualEffects 
 
@@ -71,8 +72,8 @@ def select_base_hero_and_sacrifices(game_state, heroes):
     if confirm_synthesis():
         loading_screen(2, "🌀 Процесс синтеза")
         # Выполняем синтез
-        result_message, stat_improved = synthesize_heroes(game_state, base_hero, sacrifices)
-        show_synthesis_result(result_message, stat_improved, len(sacrifices))
+        result_message, stat_improved, stat_name = synthesize_heroes(game_state, base_hero, sacrifices)
+        show_synthesis_result(result_message, stat_improved, stat_name, len(sacrifices))
         # Очищаем мёртвых героев после синтеза
         PartySystem(game_state).cleanup_dead_heroes()
         press_enter_to_continue()
@@ -230,10 +231,6 @@ def show_all_available_heroes(heroes):
     print("═" * 50)
     press_enter_to_continue()
 
-def calculate_exp_requirement(level):
-    """Рассчитывает необходимый опыт для достижения уровня"""
-    return int(100 * (level ** 1.5))
-
 def show_synthesis_preview(base_hero, sacrifices):
     """Показывает предпросмотр синтеза"""
     print_header("⚗️ ПРЕДПРОСМОТР СИНТЕЗА")
@@ -299,7 +296,7 @@ def confirm_synthesis():
         print("❌ Синтез отменён")
         return False
 
-def show_synthesis_result(result_message, stat_improved, sacrifices_count):
+def show_synthesis_result(result_message, stat_improved, stat_name, sacrifices_count):
     """Показывает результат синтеза"""
     print_header("✨ РЕЗУЛЬТАТ СИНТЕЗА")
     
@@ -312,7 +309,7 @@ def show_synthesis_result(result_message, stat_improved, sacrifices_count):
     print(f"✅ Успешно синтезировано! Удалено героев: {sacrifices_count}")
     
     # Показываем улучшение характеристики только если оно было
-    if stat_improved:
-        print(f"🎉 Получено дополнительное усиление: +1 к {stat_improved}!")
+    if stat_improved and stat_name:
+        print(f"🎉 Получено дополнительное усиление: +1 к {stat_name}!")
     
     print("═" * 40)

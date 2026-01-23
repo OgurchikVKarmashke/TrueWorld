@@ -105,7 +105,6 @@ class App:
         """Инициализирует систему достижений"""
         self.achievement_system = AchievementSystem()
     
-    # ДОБАВИМ МЕТОД ДЛЯ ИНИЦИАЛИЗАЦИИ СИСТЕМЫ РОЛЕЙ
     def _init_role_system(self):
         """Инициализирует систему ролей"""
         # Создаем временный game_state для инициализации RoleSystem
@@ -149,15 +148,11 @@ class App:
         self._start_new_game()
         
         # Инициализируем систему ролей после создания игры
-        self._init_role_system_with_game_state()  # <-- ДОБАВЛЕНО
+        # Используем существующий метод
+        self._init_role_system()
         
         return self.get_game_state_dict()
     
-    # ДОБАВИМ МЕТОД ДЛЯ ИНИЦИАЛИЗАЦИИ СИСТЕМЫ РОЛЕЙ С ПОЛНЫМ GAME_STATE
-    def _init_role_system_with_game_state(self):
-        """Инициализирует систему ролей с полным game_state"""
-        game_state = self.get_game_state_dict()
-        self.role_system = RoleSystem(game_state)
     
     # ДОБАВЛЯЕМ МЕТОД ДЛЯ ПОЛУЧЕНИЯ СОСТОЯНИЯ
     def get_game_state_dict(self):

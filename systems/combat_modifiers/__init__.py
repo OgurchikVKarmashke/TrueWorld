@@ -1,18 +1,52 @@
 # systems.combat_modifiers.__init__.py
+from systems.combat_modifiers.status_effects import (
+    StatusEffect, StatusEffectType, StatusEffectSystem,
+    create_poison_effect, create_burn_effect, create_stun_effect,
+    create_freeze_effect, create_slow_effect, create_dot_effect,
+    create_weakness_effect
+)
 
-# Система плагинов для модификаторов боя
+from systems.combat_modifiers.locations import (
+    Location, LocationType, LocationManager, location_manager
+)
 
-COMBAT_MODIFIERS = {}
+from systems.combat_modifiers.weather import (
+    Weather, WeatherSystem, weather_system
+)
 
-def register_modifier(name, modifier_class):
-    COMBAT_MODIFIERS[name] = modifier_class
+from systems.combat_modifiers.traps import (
+    Trap, TrapType, TrapSystem, trap_system
+)
 
-def get_modifier(name):
-    return COMBAT_MODIFIERS.get(name)
+"""
+Инициализация всех систем модификаторов боя.
+Теперь включает статус-эффекты, локации, погоду и ловушки.
+"""
 
-# Импортируем и регистрируем все модификаторы
-from systems.combat_modifiers.weather import WeatherModifier
-from systems.combat_modifiers.traps import TrapModifier
+# Для обратной совместимости (если где-то используется старый импорт)
+COMBAT_MODIFIERS = {
+    "weather": WeatherSystem,
+    "trap": TrapSystem,
+    "location": LocationManager,
+    "status": StatusEffectSystem
+}
 
-register_modifier("weather", WeatherModifier)
-register_modifier("trap", TrapModifier)
+__all__ = [
+    # Статус-эффекты
+    'StatusEffect', 'StatusEffectType', 'StatusEffectSystem',
+    'create_poison_effect', 'create_burn_effect', 'create_stun_effect',
+    'create_freeze_effect', 'create_slow_effect', 'create_dot_effect',
+    'create_weakness_effect',
+    
+    # Локации
+    'Location', 'LocationType', 'LocationManager', 'location_manager',
+    
+    # Погода
+    'Weather', 'WeatherSystem', 'weather_system',
+    
+    # Ловушки
+    'Trap', 'TrapType', 'TrapSystem', 'trap_system',
+    
+    # Обратная совместимость
+    'COMBAT_MODIFIERS'
+]

@@ -1,5 +1,4 @@
-# game_data.research_system.py
-
+# game_data/research_system.py
 class Research:
     def __init__(self, key, name, description, base_cost, max_level=1, min_lab_level=1, reveal_floors=None):
         self.key = key
@@ -12,13 +11,14 @@ class Research:
         self.level = 0
         self.is_researched = False
 
-    def next_level_available_by_floor(self, tower_level: int) -> bool:
+    def next_level_available_by_floor(self, max_tower_floor: int) -> bool:
+        """Проверяет, доступен ли следующий уровень на основе МАКСИМАЛЬНОГО достигнутого этажа"""
         next_level = self.level + 1
         if next_level > self.max_level:
             return False
         idx = next_level - 1
         if idx < len(self.reveal_floors):
-            return tower_level >= self.reveal_floors[idx]
+            return max_tower_floor >= self.reveal_floors[idx]
         return True
 
     def next_level_cost(self):
@@ -53,17 +53,28 @@ class ResearchManager:
         }
 
     def is_visible(self, key, game_state):
+        """Показываем исследование, если оно еще не исследовано и МАКСИМАЛЬНЫЙ этаж позволяет"""
         research = self.researches[key]
-        tower_level = game_state["tower_level"]
-        return (not research.is_researched) and research.next_level_available_by_floor(tower_level)
+        max_tower_floor = game_state.get("max_tower_floor", game_state.get("tower_level", 1))
+        
+        # Если исследование уже исследовано, не показываем
+        if research.is_researched:
+            return False
+        
+        # Если есть уровни исследования, проверяем доступность по МАКСИМАЛЬНОМУ этажу
+        return research.next_level_available_by_floor(max_tower_floor)
 
     def can_research(self, key, game_state):
+        """Проверяет возможность исследования"""
         research = self.researches[key]
         if research.level >= research.max_level:
             return False, "Исследование достигло максимального уровня"
 
-        if not research.next_level_available_by_floor(game_state["tower_level"]):
-            return False, "Недоступно: требуется зачистить более высокий этаж"
+        # Используем МАКСИМАЛЬНЫЙ достигнутый этаж
+        max_tower_floor = game_state.get("max_tower_floor", game_state.get("tower_level", 1))
+        if not research.next_level_available_by_floor(max_tower_floor):
+            required_floor = research.reveal_floors[research.level] if research.level < len(research.reveal_floors) else "?"
+            return False, f"Недоступно: требуется достичь этажа {required_floor}"
 
         lab = game_state["buildings"].get_building("laboratory")
         if lab is None or lab.level < research.min_lab_level:
@@ -90,13 +101,17 @@ class ResearchManager:
         return True, "Можно исследовать"
 
     def _apply_effect(self, key, game_state):
+        """Применяет эффект исследования"""
         research = self.researches[key]
         if research.level <= 0:
             return
 
         if key == "hero_understanding":
+            # Устанавливаем флаг, что исследование изучено
             game_state["hero_understanding"] = True
-            game_state.setdefault("flags", {})["hero_understanding"] = True
+            if "flags" not in game_state:
+                game_state["flags"] = {}
+            game_state["flags"]["hero_understanding"] = True
 
         elif key == "party_expansion":
             # ПРОСТОЙ СПОСОБ: устанавливаем max_parties
@@ -136,6 +151,7 @@ class ResearchManager:
             self._apply_effect(key, game_state)
 
     def start_research(self, key, game_state):
+        """Запускает исследование"""
         can, msg = self.can_research(key, game_state)
         if not can:
             return False, msg
@@ -151,7 +167,7 @@ class ResearchManager:
             if "laboratory" in assigned_heroes and assigned_heroes["laboratory"] is not None:
                 researcher = assigned_heroes["laboratory"]
                 # Здесь позже будет логика бонусов от навыков героя
-                # Например: researcher_bonus = 0.9 if researcher.has_skill("research_efficiency") else 1.0
+                pass
         
         actual_cost = {
             "gold": int(cost["gold"] * researcher_bonus),

@@ -1,104 +1,198 @@
 # systems.combat_system.py
 import random
 import time
+from typing import List, Dict
 from systems.hero_system import Hero
 from systems.party_system import PartySystem
 from systems.difficulty_system import DifficultySystem
-from systems.combat_modifiers import COMBAT_MODIFIERS
-from game_data.monsters_data import MONSTER_BASE_STATS, BOSS_STATS, MONSTER_SPAWN_CHANCES, MONSTER_COUNT_BY_FLOOR
-from game_data.bosses_data import BOSS_ABILITIES
-from app import app
+from game_data.monsters_data import MONSTER_BASE_STATS, MONSTER_SPAWN_CHANCES, MONSTER_COUNT_BY_FLOOR
+from game_data.bosses_data import BOSS_STATS
+from game_data.stats_base import StatsBase
+from systems.combat_modifiers.locations import location_manager
+from systems.combat_modifiers.weather import weather_system
+from systems.combat_modifiers.traps import trap_system
+from systems.combat_modifiers.status_effects import StatusEffectSystem
+from systems.combat_modifiers.skills.boss_skills import BOSS_SKILLS
 
-class Monster:
+"""
+Боевая система с локациями, погодой и ловушками.
+Сохранен оригинальный пошаговый визуал боя.
+"""
+
+
+class Monster(StatsBase):
     def __init__(self, name, level, monster_type="normal"):
+        super().__init__()
         self.name = name
         self.level = level
         self.monster_type = monster_type
-        self._calculate_stats()
-        self.health_current = self.health_max
         self.is_alive = True
         self.monster_id = f"{name}_{level}_{random.randint(1000,9999)}"
-
-    def _calculate_stats(self):
-        """Рассчитывает статы на основе типа и уровня"""
+        self.monster_class = self._get_monster_class(name)
+        
+        # НОВОЕ: Система навыков для монстров
+        self.skill_system = None
+        if monster_type == "boss" and self.name in BOSS_SKILLS:
+            from systems.combat_modifiers.skills.skill_system import SkillSystem
+            self.skill_system = SkillSystem()
+            for skill in BOSS_SKILLS[self.name]:
+                self.skill_system.add_skill(skill)
+        
+        self._calculate_base_stats()
+        self.calculate_derived_stats(self.level)
+        self.status_system = StatusEffectSystem(self)
+    
+    def _get_monster_class(self, monster_type: str) -> str:
+        """Определяет класс монстра на основе типа"""
+        class_map = {
+            "Гоблин": "warrior",
+            "Скелет": "warrior", 
+            "Орк": "warrior",
+            "Паук": "beast",
+            "Волк": "beast",
+            "Древний Дракон": "dragon",
+            "Повелитель Теней": "shadow",
+            "Король Лич": "undead"
+        }
+        return class_map.get(monster_type, "warrior")
+    
+    def _calculate_base_stats(self):
+        """Рассчитывает базовые характеристики на основе типа и уровня"""
         if self.monster_type == "boss" and self.name in BOSS_STATS:
+            # Боссы - используем данные из bosses_data.py
             boss_data = BOSS_STATS[self.name]
-            base_stats = MONSTER_BASE_STATS.get("Орк", {})
+            base_stats = boss_data["base_stats"]
+            growth = boss_data["growth_per_level"]
             
-            self.health_max = int((base_stats.get("health_per_level", 10) * self.level) * boss_data["health_multiplier"])
-            self.attack = int((base_stats.get("attack_per_level", 3) * self.level) * boss_data["attack_multiplier"])
-            self.defense = int((base_stats.get("defense_per_level", 1) * self.level) * boss_data["defense_multiplier"])
-            # УВЕЛИЧИМ: опыт для боссов
-            self.exp_value = int(500 * (self.level ** 0.8) * boss_data["exp_multiplier"])
+            # Рассчитываем характеристики с учетом уровня
+            self.strength = base_stats["strength"] + (growth["strength"] * (self.level - 1))
+            self.dexterity = base_stats["dexterity"] + (growth["dexterity"] * (self.level - 1))
+            self.constitution = base_stats["constitution"] + (growth["constitution"] * (self.level - 1))
+            self.intelligence = base_stats["intelligence"] + (growth["intelligence"] * (self.level - 1))
+            
+            # Опыт за босса
+            self.exp_value = int(100 * (self.level ** 0.7) * boss_data.get("exp_multiplier", 1.0))
         else:
+            # Обычные монстры - используем данные из monsters_data.py
             monster_data = MONSTER_BASE_STATS.get(self.name, {})
-            self.health_max = monster_data.get("health_per_level", 8) * self.level
-            self.attack = monster_data.get("attack_per_level", 2) * self.level
-            self.defense = monster_data.get("defense_per_level", 1) * self.level
-            # УВЕЛИЧИМ: опыт для обычных монстров
+            base_stats = monster_data.get("base_stats", {"strength": 8, "dexterity": 8, "constitution": 8, "intelligence": 8})
+            growth = monster_data.get("growth_per_level", {"strength": 1.0, "dexterity": 1.0, "constitution": 1.0, "intelligence": 1.0})
+            
+            # Рассчитываем характеристики с учетом уровня
+            self.strength = base_stats["strength"] + (growth["strength"] * (self.level - 1))
+            self.dexterity = base_stats["dexterity"] + (growth["dexterity"] * (self.level - 1))
+            self.constitution = base_stats["constitution"] + (growth["constitution"] * (self.level - 1))
+            self.intelligence = base_stats["intelligence"] + (growth["intelligence"] * (self.level - 1))
+            
+            # Опыт за обычного монстра
             self.exp_value = int(100 * (self.level ** 0.7))
 
-    def take_damage(self, damage):
-        actual_damage = max(1, damage - self.defense)
+    def take_damage(self, damage, damage_type: str = ""):
+        # Модифицируем урон статус-эффектами
+        if hasattr(self, 'status_system'):
+            damage = self.status_system.modify_damage(damage, damage_type)
+        
+        actual_damage = max(1, damage - self.defense)  # self.defense теперь из StatsBase
+        blocked_damage = damage - actual_damage
+        
         self.health_current -= actual_damage
         
+        # Форматируем сообщение как ты хочешь
         if self.health_current <= 0:
             self.is_alive = False
-            return f"{self.name} повержен!"
+            message = f"{self.name} повержен!"
+            return message
+        else:
+            message = f"{self.name} получает {actual_damage} урона"
+            if blocked_damage > 0:
+                message += f" (заблокировано {blocked_damage})"
+            message += f". Осталось {self.health_current} HP."
         
-        return f"{self.name} получает {actual_damage} урона. Осталось {self.health_current} HP."
+        return message
 
     def attack_target(self, target: Hero):
         damage_dealt = random.randint(self.attack // 2, self.attack)
-        result = target.take_damage(damage_dealt)
-        time.sleep(0.3)
+        
+        # НОВОЕ: Модифицируем урон статус-эффектами атакующего
+        if hasattr(self, 'status_system'):
+            damage_dealt = self.status_system.modify_damage(damage_dealt)
+        
+        result = target.take_damage(damage_dealt) 
         return result
 
     def use_special_ability(self, heroes):
         """Использование специальной способности (для боссов)"""
-        if self.monster_type != "boss" or self.name not in BOSS_ABILITIES:
+        if not self.skill_system:
             return None
-            
-        abilities = BOSS_ABILITIES[self.name]
-        for ability_name, ability_data in abilities.items():
-            if random.random() < ability_data["chance"]:
-                return self._execute_ability(ability_name, ability_data, heroes)
-        return None
+        
+        available_skills = self.skill_system.get_available_skills(self)
+        if not available_skills:
+            return None
+        
+        # Выбираем случайный доступный навык
+        skill = random.choice(available_skills)
+        result = skill.use(self, heroes)
+        
+        return result.get("message") if result else None
 
     def _execute_ability(self, ability_name, ability_data, heroes):
-        """Выполняет специальную способность"""
+        """Выполняет специальную способность, используя новую систему навыков"""
+        # Используем функцию из BOSS_SKILLS если она есть
+        if ability_name in BOSS_SKILLS:
+            return BOSS_SKILLS[ability_name](self, heroes, ability_data)
+        
+        # Если навыка нет в словаре, используем старую логику (для обратной совместимости)
         if ability_name == "Огненное дыхание":
             damage = int(self.attack * ability_data["damage_multiplier"])
             results = []
             for hero in heroes:
                 if hero.is_alive:
-                    result = hero.take_damage(damage // 2)  # полный урон по всем
+                    result = hero.take_damage(damage // 2, "огненный")
                     results.append(f"{hero.name}: {result}")
             return f"{self.name} использует {ability_name}!\n" + "\n".join(results)
         
         return f"{self.name} использует {ability_name}!"
 
+    def process_status_effects(self):
+        """Обрабатывает статус-эффекты в начале хода"""
+        if hasattr(self, 'status_system'):
+            return self.status_system.process_turn_start()
+        return []
+
+    def can_act(self):
+        """Может ли монстр действовать (не оглушен/заморожен)"""
+        if hasattr(self, 'status_system'):
+            return self.status_system.can_act()
+        return True
+
     def to_dict(self):
-        return {
+        data = super().to_dict()  # Берем данные из StatsBase
+        data.update({
             'name': self.name,
             'level': self.level,
             'monster_type': self.monster_type,
-            'health_max': self.health_max,
-            'health_current': self.health_current,
-            'attack': self.attack,
-            'defense': self.defense,
             'is_alive': self.is_alive,
-            'monster_id': self.monster_id
-        }
-
+            'monster_id': self.monster_id,
+            'monster_class': self.monster_class,
+            'exp_value': self.exp_value
+        })
+        return data
+    
     @classmethod
     def from_dict(cls, data):
         monster = cls(data['name'], data['level'], data.get('monster_type', 'normal'))
-        monster.health_max = data['health_max']
-        monster.health_current = data['health_current']
-        monster.attack = data['attack']
-        monster.defense = data['defense']
+        # Загружаем характеристики из StatsBase
+        monster.from_dict(data)
+        
+        # Восстанавливаем дополнительные поля
         monster.is_alive = data['is_alive']
+        monster.monster_class = data.get('monster_class', 'warrior')
+        monster.exp_value = data.get('exp_value', 0)
+        
+        # Восстанавливаем статус-эффекты если есть
+        if 'status_effects' in data and hasattr(monster, 'status_system'):
+            monster.status_system.load_effects(data['status_effects'])
+        
         return monster
 
 class Combat:
@@ -106,68 +200,31 @@ class Combat:
         self.heroes = hero_party
         self.tower_level = tower_level
         self.game_state = game_state
+        
+        # НОВОЕ: Создаем окружение для боя
+        from systems.combat_modifiers.combat_environment import CombatEnvironment
+        self.environment = CombatEnvironment()
+        env_data = self.environment.generate_for_floor(tower_level)
+        
+        self.location = env_data["location"]
+        self.weather = env_data["weather"]
+        self.traps = env_data["traps"]
+        
         self.monsters = self._get_or_generate_monsters()
         self.combat_log = []
         self.total_exp_earned = 0
-        self.modifiers = self._load_combat_modifiers(tower_level)
-
-    def _load_combat_modifiers(self, floor_level):
-        """Загружает модификаторы боя для этажа"""
-        modifiers = []
-        
-        # Погодные модификаторы (случайная погода на каждом этаже)
-        weather_chances = {
-            "ясно": 40,      # 40% chance
-            "облачно": 25,   # 25% chance  
-            "дождь": 10,     # 10% chance
-            "гроза": 5,      # 5% chance
-            "туман": 8,      # 8% chance
-            "снег": 5,       # 5% chance
-            "ветер": 4,      # 4% chance
-            "жара": 3        # 3% chance
-        }
-        
-        weather_type = self._choose_random(weather_chances)
-        modifiers.append(COMBAT_MODIFIERS["weather"](weather_type))
-        
-        # Ловушки (случайные на любом этаже, кроме 1-го)
-        if floor_level > 1:
-            trap_chances = {
-                "none": 60,              # 60% без ловушки
-                "огненная_ловушка": 15,  # 15% chance
-                "ледяная_ловушка": 10,   # 10% chance
-                "ядовитая_ловушка": 8,   # 8% chance
-                "электрическая_ловушка": 7  # 7% chance
-            }
-            
-            trap_type = self._choose_random(trap_chances)
-            if trap_type != "none":
-                modifiers.append(COMBAT_MODIFIERS["trap"](trap_type))
-        
-        return modifiers
-
-    def _choose_random(self, chances_dict):
-        """Выбирает случайный вариант на основе шансов"""
-        total = sum(chances_dict.values())
-        r = random.randint(1, total)
-        current = 0
-        for item, chance in chances_dict.items():
-            current += chance
-            if r <= current:
-                return item
-        return list(chances_dict.keys())[0]
 
     def _get_or_generate_monsters(self):
         if self.tower_level in self.game_state["tower_monsters"]:
             monsters_data = self.game_state["tower_monsters"][self.tower_level]
             return [Monster.from_dict(data) for data in monsters_data]
         else:
-            monsters = self._generate_monsters()
+            monsters = self._generate_monsters_for_location()
             self.game_state["tower_monsters"][self.tower_level] = [m.to_dict() for m in monsters]
             return monsters
 
-    def _generate_monsters(self):
-        """Генерация сбалансированной группы монстров"""
+    def _generate_monsters_for_location(self):
+        """Генерация монстров с учетом локации"""
         if self.tower_level % 5 == 0:
             # Босс-этаж
             boss_names = [name for name, data in BOSS_STATS.items() if self.tower_level >= data["min_level"]]
@@ -178,224 +235,221 @@ class Combat:
             return [Monster(boss_name, boss_level, "boss")]
         
         else:
-            # Обычный этаж
+            # Обычный этаж - используем пул монстров локации
+            location_monster_pool = self.location.base_monster_pool
+            
+            if not location_monster_pool:
+                # Если у локации нет пула, используем общий
+                floor_chances = {}
+                for floor, chances in MONSTER_SPAWN_CHANCES.items():
+                    if self.tower_level <= floor:
+                        floor_chances = chances
+                        break
+                else:
+                    floor_chances = MONSTER_SPAWN_CHANCES[max(MONSTER_SPAWN_CHANCES.keys())]
+                location_monster_pool = list(floor_chances.keys())
+            
             min_count, max_count = MONSTER_COUNT_BY_FLOOR.get(self.tower_level, (1, 3))
             monster_count = random.randint(min_count, max_count)
             
-            # Выбираем типы монстров для этого этажа
-            floor_chances = {}
-            for floor, chances in MONSTER_SPAWN_CHANCES.items():
-                if self.tower_level <= floor:
-                    floor_chances = chances
-                    break
-            else:
-                floor_chances = MONSTER_SPAWN_CHANCES[max(MONSTER_SPAWN_CHANCES.keys())]
-            
             monsters = []
             for _ in range(monster_count):
-                monster_type = self._choose_monster_type(floor_chances)
+                monster_type = random.choice(location_monster_pool)
                 level = max(1, self.tower_level + random.randint(-1, 1))
                 monsters.append(Monster(monster_type, level))
             
             return monsters
 
-    def _choose_monster_type(self, chances_dict):
-        total = sum(chances_dict.values())
-        r = random.randint(1, total)
-        current = 0
-        for monster_type, chance in chances_dict.items():
-            current += chance
-            if r <= current:
-                return monster_type
-        return list(chances_dict.keys())[0]
-
     def start_combat(self):
-        """Начинаем сбалансированный бой"""
-        battle_intro = [
-            "=" * 50,
-            f"БАШНЯ ИСПЫТАНИЙ - ЭТАЖ {self.tower_level}",
-            "=" * 50
-        ]
+        """Начинаем сбалансированный бой - ОРИГИНАЛЬНЫЙ ВИЗУАЛ"""
+        from ui.combat_ui import (
+            show_combat_intro, show_location_and_weather, show_enemies_info,
+            show_traps_info, show_round_start, show_hero_action, show_monster_action,
+            show_trap_activation, show_weather_effect, show_status_effect,
+            show_kill_message, show_combat_timeout, show_damage_message,
+            show_turn_divider
+        )
         
-        # Показываем силы сторон
-        hero_power = sum(h.attack + h.defense for h in self.heroes if h.is_alive)
-        monster_power = sum(m.attack + m.defense for m in self.monsters if m.is_alive)
+        # НОВОЕ: Показываем вступление к бою
+        show_combat_intro(self.heroes, self.monsters, self.tower_level)
         
-        difficulty, color = DifficultySystem.calculate_difficulty(hero_power, monster_power)
-        difficulty_display = f"{color} Сложность: {difficulty.upper()}"
-
-        battle_intro.extend([
-            f"Сила отряда: {hero_power}",
-            f"Сила монстров: {monster_power}",
-            "=" * 50
-        ])
+        # НОВОЕ: Показываем локацию и погоду
+        show_location_and_weather(
+            self.location.name, self.location.description,
+            self.weather.name, self.weather.description, 
+            self.weather.is_dangerous
+        )
         
-        for monster in self.monsters:
-            battle_intro.append(f"- {monster.name} (Ур. {monster.level}) | ❤️{monster.health_max} ⚔️{monster.attack} 🛡️{monster.defense}")
+        # НОВОЕ: Показываем информацию о монстрах
+        show_enemies_info(self.monsters)
         
-        # Добавляем вводную часть в лог
-        self.combat_log.extend(battle_intro)
-        
-        # Показываем вводную информацию
-        for line in battle_intro:
-            print(line)
-        
-        time.sleep(1.5)  # Пауза перед началом боя
+        # НОВОЕ: Показываем ловушки
+        show_traps_info(self.traps)
         
         round_number = 1
         
         while any(h.is_alive for h in self.heroes) and any(m.is_alive for m in self.monsters):
-            round_header = f"\n--- РАУНД {round_number} ---"
-            print(round_header)
-            self.combat_log.append(round_header)
-            time.sleep(0.6)  # Комфортная пауза
+            # Показываем начало раунда. ИСПРАВЛЕНО: Теперь передаем все три аргумента
+            show_round_start(round_number, self.heroes, self.monsters)
+            
+            # Показываем разделитель хода героев
+            show_turn_divider("heroes")
+            
+            # НОВОЕ: Применяем погодные эффекты в начале раунда
+            weather_messages = weather_system.apply_weather_effects(self.heroes, self.monsters)
+            for msg in weather_messages:
+                show_weather_effect(msg)
+            
+            # НОВОЕ: Обрабатываем статус-эффекты у всех
+            for hero in self.heroes:
+                if hero.is_alive and hasattr(hero, 'status_system'):
+                    hero_messages = hero.status_system.process_turn_start()
+                    for msg in hero_messages:
+                        show_status_effect(f"{hero.name}: {msg}")
+            
+            for monster in self.monsters:
+                if monster.is_alive and hasattr(monster, 'status_system'):
+                    monster_messages = monster.process_status_effects()
+                    for msg in monster_messages:
+                        show_status_effect(f"{monster.name}: {msg}")
             
             # Ход героев
             for hero in self.heroes:
                 if hero.is_alive and any(m.is_alive for m in self.monsters):
+                    # Проверяем ловушки перед действием
+                    trap_messages = trap_system.check_trap_trigger(hero)
+                    for msg in trap_messages:
+                        show_trap_activation(msg)
+                        self.combat_log.append(msg)
+                    
+                    # Если герой не может действовать из-за эффектов
+                    if hasattr(hero, 'status_system') and not hero.status_system.can_act():
+                        msg = f"{hero.name} не может действовать из-за эффектов!"
+                        print(msg)
+                        self.combat_log.append(msg)
+                        time.sleep(0.6)
+                        continue
+                    
                     alive_monsters = [m for m in self.monsters if m.is_alive]
                     target = random.choice(alive_monsters)
                     action_text = hero.decide_action(target)
-                    print(action_text)
-                    self.combat_log.append(action_text)
-                    if hasattr(self, 'weather_modifier'):
-                        # Применяем эффекты погоды к атаке
-                        pass  # Реализуйте вызов weather_modifier.apply_weather_effect()
-
-                    if hasattr(self, 'trap_modifier'):
-                        # Проверяем активацию ловушки
-                        trap_result = self.trap_modifier.trigger_trap(target)
-                        if trap_result:
-                            print(trap_result)
-                            self.combat_log.append(trap_result)
                     
-                    # Проверяем, был ли монстр убит и начисляем опыт
+                    # Разделяем на строки
+                    lines = action_text.split('\n')
+                    if lines:
+                        # Первая строка - описание действия
+                        show_hero_action(hero, lines[0])
+                        self.combat_log.append(f"{hero.name}: {lines[0]}")
+                        
+                        # Если есть вторая строка (результат урона)
+                        if len(lines) > 1 and lines[1].strip():
+                            # Определяем, сильный ли это урон (пока не знаем, передаем False)
+                            show_damage_message(lines[1], is_heavy_damage=False)
+                            self.combat_log.append(f"({lines[1]})")
+                    
+                    # Проверяем ловушки после действия
+                    trap_messages = trap_system.check_trap_trigger(target)
+                    for msg in trap_messages:
+                        show_trap_activation(msg)
+                        self.combat_log.append(msg)
+                    
+                    # Проверяем, был ли монстр убит
                     if not target.is_alive:
                         self.total_exp_earned += target.exp_value
-                        kill_message = f"{target.name} повержен! +{target.exp_value} опыта"
-                        print(kill_message)
-                        self.combat_log.append(kill_message)
+                        kill_msg = f"{target.name} повержен! +{target.exp_value} опыта"
+                        show_kill_message(target, target.exp_value)
+                        self.combat_log.append(kill_msg)
                     
-                    time.sleep(0.6)  # Комфортная пауза между действиями
+                    time.sleep(0.6)
             
+            # Проверяем, остались ли монстры
             if not any(m.is_alive for m in self.monsters):
                 break
                 
+            # Показываем разделитель хода монстров
+            show_turn_divider("monsters")
+            
             # Ход монстров
             for monster in self.monsters:
                 if monster.is_alive and any(h.is_alive for h in self.heroes):
+                    # Проверяем ловушки перед действием
+                    trap_messages = trap_system.check_trap_trigger(monster)
+                    for msg in trap_messages:
+                        show_trap_activation(msg)
+                        self.combat_log.append(msg)
+                    
+                    # Если монстр не может действовать из-за эффектов
+                    if not monster.can_act():
+                        msg = f"{monster.name} не может действовать из-за эффектов!"
+                        print(msg)
+                        self.combat_log.append(msg)
+                        time.sleep(0.6)
+                        continue
+                    
                     # Боссы могут использовать способности
                     if monster.monster_type == "boss" and random.random() < 0.3:
                         ability_result = monster.use_special_ability(self.heroes)
                         if ability_result:
-                            print(ability_result)
+                            from ui.color_utils import colorize_skill_message  # Добавляем импорт
+                            colored_message = colorize_skill_message(ability_result)
+                            print(colored_message)
                             self.combat_log.append(ability_result)
-                            time.sleep(0.8)  # Немного дольше для способностей
+                            time.sleep(0.8)
                             continue
                     
                     alive_heroes = [h for h in self.heroes if h.is_alive]
                     if alive_heroes:
                         target = random.choice(alive_heroes)
-                        attack_message = f"{monster.name} атакует {target.name}!"
-                        print(attack_message)
+                        attack_message = f"{monster.name} атакует {target.name} и наносит {monster.attack} урона!"
+                        
+                        # Показываем действие монстра
+                        show_monster_action(monster, attack_message)
                         self.combat_log.append(attack_message)
                         time.sleep(0.4)
                         
-                        result = monster.attack_target(target)
-                        print(result)
-                        self.combat_log.append(result)
+                        # Атака и показ урона
+                        damage_result = target.take_damage(monster.attack)
+
+                        # Если это кортеж - берем только первый элемент (строку)
+                        if isinstance(damage_result, tuple):
+                            result = damage_result[0]  # Берем только строку
+                            # Определяем сильный ли урон (более 50% от максимального HP)
+                            is_heavy = monster.attack >= (target.health_max * 0.5) if hasattr(target, 'health_max') else False
+                        else:
+                            result = damage_result
+                            is_heavy = False
+
+                        show_damage_message(result, is_heavy_damage=is_heavy)
+                        self.combat_log.append(f"({result})")
                         time.sleep(0.6)
 
             round_number += 1
             if round_number > 15:
                 timeout_message = "Бой затянулся! Обе стороны истощены..."
-                print(timeout_message)
+                show_combat_timeout()
                 self.combat_log.append(timeout_message)
                 break
 
         victory = any(h.is_alive for h in self.heroes)
         
-        # ВАЖНО: Распределяем опыт между выжившими героями ПЕРЕД выдачей наград
-        if victory and self.total_exp_earned > 0:
-            living_heroes = [h for h in self.heroes if h.is_alive]
-            if living_heroes:
-                exp_per_hero = self.total_exp_earned // len(living_heroes)
-                exp_remainder = self.total_exp_earned % len(living_heroes)
-                
-                for i, hero in enumerate(living_heroes):
-                    # Даем остаток опыта первому герою
-                    hero_exp = exp_per_hero + (1 if i == 0 and exp_remainder > 0 else 0)
-                    hero.add_experience(hero_exp)  # Просто начисляем без вывода
+        # НЕ показываем повышение уровня здесь - только в наградах!
         
-        # Выдаем награды только при победе
-        if victory:
-            self._give_victory_rewards()
-            
-        # Очищаем группы от мертвых героев
-        PartySystem(self.game_state).cleanup_dead_heroes()
+        # Очищаем после боя
+        self._cleanup_after_combat()
         
-        # ДОБАВИТЬ ПРОВЕРКУ - очищаем мертвых героев с ролей, если система ролей инициализирована
-        if self.game_state.get("role_system") is not None:
-            self.game_state["role_system"].cleanup_dead_heroes()
-        
-        # Сохранение
-        self.game_state["save_system"].save_game(self.game_state)
-        
-        # Асинхронное сохранение
-        import threading
-        def async_save():
-            # ИСПРАВЛЕНИЕ: используем self.game_state вместо save_data
-            self.game_state["save_system"].save_game(self.game_state)
-        
-        thread = threading.Thread(target=async_save)
-        thread.daemon = True
-        thread.start()
-
-        # Добавляем результат боя в лог
-        result_message = "\n🎉 ПОБЕДА!" if victory else "\n💥 ПОРАЖЕНИЕ"
-        print(result_message)
-        self.combat_log.append(result_message)
-        
+        # Сохраняем состояние
         self.game_state["tower_monsters"][self.tower_level] = [m.to_dict() for m in self.monsters]
-        
-        # ДОБАВЛЕНО: Пауза для просмотра результатов боя
-        print("\n" + "="*50)
-        print("Бой завершен. Нажмите Enter чтобы продолжить...")
-        input()
         
         return victory, self.combat_log, self.total_exp_earned
 
-    def cleanup_party_system(self):
-        """Очищает систему групп от мертвых героев после боя"""
-        if "party_system" in self.game_state:
-            from systems.party_system import PartySystem
-            party_system = PartySystem(self.game_state)
-            party_system.cleanup_dead_heroes()
-
-    def _give_victory_rewards(self):
-        """Выдает награды за победу на этаже"""
-        from game_data.tower_rewards import get_floor_rewards, generate_item_rewards
+    def _cleanup_after_combat(self):
+        """Очистка после боя"""
+        # Очищаем группы от мертвых героев
+        PartySystem(self.game_state).cleanup_dead_heroes()
         
-        rewards = get_floor_rewards(self.tower_level)
-        wallet = self.game_state["wallet"]
-        storage = self.game_state["storage"]
+        # Очищаем мертвых героев с ролей
+        if self.game_state.get("role_system"):
+            self.game_state["role_system"].cleanup_dead_heroes()
         
-        # Добавляем золото и кристаллы
-        wallet.add_gold(rewards["gold"])
-        wallet.add_crystals(rewards.get("crystals", 0))
-        
-        # Генерируем и добавляем предметы
-        item_rewards = {}
-        if "items" in rewards:
-            generated_items = generate_item_rewards(rewards["items"])
-            for item_id, quantity in generated_items.items():
-                item = self.game_state["item_manager"].create_item(item_id, quantity)
-                if item and storage.add_item(item):
-                    item_rewards[item_id] = quantity
-        
-        # Сохраняем информацию о полученных наградах для показа
-        self.victory_rewards = {
-            "gold": rewards["gold"],
-            "crystals": rewards.get("crystals", 0),
-            "items": item_rewards
-        }
+        # НОВОЕ: Очищаем окружение боя
+        self.environment.clear()

@@ -1,64 +1,85 @@
 # monsters_data.py
+
+"""
+Данные обычных монстров с новыми характеристиками (сила, ловкость, выносливость, интеллект)
+"""
+
+# Базовые характеристики монстров на 1 уровне
 MONSTER_BASE_STATS = {
     "Гоблин": {
-        "health_per_level": 8,
-        "attack_per_level": 2,
-        "defense_per_level": 1,
-        "exp_per_level": 10,
+        "base_stats": {
+            "strength": 8,
+            "dexterity": 12,
+            "constitution": 6,
+            "intelligence": 4
+        },
+        "growth_per_level": {
+            "strength": 0.8,
+            "dexterity": 1.2,
+            "constitution": 0.6,
+            "intelligence": 0.4
+        },
         "description": "Мелкий, зелёный и противный"
     },
     "Скелет": {
-        "health_per_level": 7,
-        "attack_per_level": 3,
-        "defense_per_level": 2,
-        "exp_per_level": 12,
+        "base_stats": {
+            "strength": 7,
+            "dexterity": 10,
+            "constitution": 8,
+            "intelligence": 3
+        },
+        "growth_per_level": {
+            "strength": 0.7,
+            "dexterity": 1.0,
+            "constitution": 0.8,
+            "intelligence": 0.3
+        },
         "description": "Восставший мертвец"
     },
     "Орк": {
-        "health_per_level": 12,
-        "attack_per_level": 4,
-        "defense_per_level": 1,
-        "exp_per_level": 15,
+        "base_stats": {
+            "strength": 15,
+            "dexterity": 6,
+            "constitution": 12,
+            "intelligence": 2
+        },
+        "growth_per_level": {
+            "strength": 1.5,
+            "dexterity": 0.6,
+            "constitution": 1.2,
+            "intelligence": 0.2
+        },
         "description": "Большой и сильный"
     },
     "Паук": {
-        "health_per_level": 6,
-        "attack_per_level": 3,
-        "defense_per_level": 0,
-        "exp_per_level": 8,
+        "base_stats": {
+            "strength": 5,
+            "dexterity": 15,
+            "constitution": 5,
+            "intelligence": 1
+        },
+        "growth_per_level": {
+            "strength": 0.5,
+            "dexterity": 1.5,
+            "constitution": 0.5,
+            "intelligence": 0.1
+        },
         "description": "Ядовитое насекомое"
     },
     "Волк": {
-        "health_per_level": 9,
-        "attack_per_level": 3,
-        "defense_per_level": 1,
-        "exp_per_level": 11,
+        "base_stats": {
+            "strength": 9,
+            "dexterity": 14,
+            "constitution": 8,
+            "intelligence": 2
+        },
+        "growth_per_level": {
+            "strength": 0.9,
+            "dexterity": 1.4,
+            "constitution": 0.8,
+            "intelligence": 0.2
+        },
         "description": "Быстрый хищник"
-    }
-}
-
-# Боссы
-BOSS_STATS = {
-    "Древний Дракон": {
-        "health_multiplier": 3.0,
-        "attack_multiplier": 2.5,
-        "defense_multiplier": 2.0,
-        "exp_multiplier": 5.0,
-        "min_level": 10
-    },
-    "Повелитель Теней": {
-        "health_multiplier": 2.8,
-        "attack_multiplier": 2.7,
-        "defense_multiplier": 1.8,
-        "exp_multiplier": 4.5,
-        "min_level": 15
-    },
-    "Король Лич": {
-        "health_multiplier": 2.5,
-        "attack_multiplier": 2.3,
-        "defense_multiplier": 2.2,
-        "exp_multiplier": 4.0,
-        "min_level": 20
     }
 }
 
@@ -73,7 +94,7 @@ MONSTER_SPAWN_CHANCES = {
 
 # Количество монстров на этаже
 MONSTER_COUNT_BY_FLOOR = {
-    1: (1, 2),    # мин, макс
+    1: (1, 2),
     2: (1, 3),
     3: (2, 3),
     4: (2, 4),
@@ -82,5 +103,5 @@ MONSTER_COUNT_BY_FLOOR = {
     7: (4, 5),
     8: (4, 6),
     9: (5, 6),
-    10: (1, 1)    # босс
+    10: (1, 1)  # босс
 }

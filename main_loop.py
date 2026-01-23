@@ -159,11 +159,15 @@ def main_menu():
             print("🎉 НОВЫЕ ВОЗМОЖНОСТИ:")
             for unlock in new_unlocks:
                 print(f"   {unlock}")
-            print()
 
         # Очищаем мертвых героев из групп
         party_system = PartySystem(game_state)
-        party_system.cleanup_dead_heroes()
+        dead_heroes_in_parties = party_system.cleanup_dead_heroes()
+
+        # НОВОЕ: Удаляем мертвых героев из основного списка game_state
+        if dead_heroes_in_parties:
+            game_state["heroes"] = [h for h in game_state["heroes"] if h.is_alive]
+            print(f"💀 Удалено {len(dead_heroes_in_parties)} мёртвых героев из списка")
         
         # Очищаем мертвых героев с ролей
         if game_state.get("role_system") is not None:

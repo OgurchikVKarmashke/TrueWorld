@@ -1,8 +1,10 @@
 # ui.tower_ui.py
 from game_data.tower_rewards import get_floor_rewards, generate_item_rewards
 from systems.difficulty_system import DifficultySystem
+from systems.hero_system import Hero
 from ui.ui_utils import print_header, press_enter_to_continue, loading_screen, clear_screen
 from ui.visual_effects import VisualEffects
+from typing import Dict, List
 import time
 import random
 
@@ -120,48 +122,84 @@ def show_expedition_preview(active_party_heroes, current_floor):
     except ValueError:
         return None
 
-def show_victory_screen(reward, total_exp, new_floor, dead_heroes, item_rewards=None, game_state=None):
-    """Показать экран победы с наградами"""
-    display_tower_header("🎉 ПОБЕДА!")
-    print(f"💰 Награда: {reward} золота")
-    print(f"📈 Получено опыта: {total_exp}")
+def show_tower_rewards(rewards: Dict, total_exp: int, new_floor: int, 
+                      dead_heroes: List[Hero], game_state: Dict, heroes: List[Hero] = None) -> None:
+    """Показывает награды за победу в башне"""
+    clear_screen()
     
-    # ПОКАЗЫВАЕМ СКОЛЬКО ОПЫТА ДОСТАЛОСЬ КАЖДОМУ ГЕРОЮ
-    if game_state and "heroes" in game_state:
-        living_heroes = [h for h in game_state["heroes"] if h.is_alive]
-        if living_heroes:
-            exp_per_hero = total_exp // len(living_heroes) if living_heroes else 0
+    print("=" * 60)
+    print("🎁 НАГРАДЫ ЗА ПОБЕДУ")
+    print("=" * 60)
+    
+    # Награды
+    print(f"\n💰 Золото: +{rewards.get('gold', 0)}")
+    if rewards.get('crystals', 0) > 0:
+        print(f"💎 Кристаллы: +{rewards.get('crystals', 0)}")
+    
+    print(f"📈 Общий опыт за этаж: +{total_exp}")
+    
+    # Выводим средний опыт на героя
+    if heroes:
+        alive_heroes = [hero for hero in heroes if hero.is_alive]
+        if alive_heroes:
+            exp_per_hero = total_exp // len(alive_heroes)
             print(f"📊 Опыт на героя: ~{exp_per_hero}")
     
-    # ПОКАЗЫВАЕМ ПОЛУЧЕННЫЕ ПРЕДМЕТЫ
-    if item_rewards:
-        print("📦 Полученные предметы:")
-        for item_id, quantity in item_rewards.items():
-            if game_state and "item_manager" in game_state:
-                item = game_state["item_manager"].get_item(item_id)
+    # Предметы (материалы) с правильными именами
+    if rewards.get('items'):
+        print("\n🎁 Полученные материалы:")
+        for item_id, quantity in rewards['items'].items():
+            # Пробуем получить имя предмета из item_manager
+            item_name = item_id  # По умолчанию показываем ID
+            
+            if game_state and 'item_manager' in game_state:
+                item_obj = game_state['item_manager'].get_item(item_id)
+                if item_obj and hasattr(item_obj, 'name'):
+                    item_name = item_obj.name
+            
+            print(f"   - {item_name} x{quantity}")
+            
+            # Добавляем предметы в хранилище (без сообщения в консоль)
+            if 'storage' in game_state and 'item_manager' in game_state:
+                item = game_state['item_manager'].create_item(item_id, quantity)
                 if item:
-                    print(f"   - {item.name} x{quantity}")
-            else:
-                # Фолбэк если game_state не передан
-                print(f"   - Предмет ID: {item_id} x{quantity}")
+                    game_state['storage'].add_item(item)
+    
+    # Погибшие герои (оставляем только если есть)
+    if dead_heroes:
+        print("\n💀 Погибшие в бою:")
+        for hero in dead_heroes:
+            print(f"   - {hero.name}")
+    
+    print(f"\n🏆 Доступен этаж: {new_floor}")
+    print("=" * 60)
+    
+    # Обновляем максимальный этаж
+    if new_floor > game_state.get("max_tower_floor", 1):
+        game_state["max_tower_floor"] = new_floor
+    
+    print("\nНажмите Enter чтобы вернуться в меню...")
+    input()
+
+
+def show_tower_defeat(dead_heroes: List[Hero], current_floor: int) -> None:
+    """Показывает экран поражения в башне"""
+    clear_screen()
+    
+    print("=" * 60)
+    print("💀 ПОРАЖЕНИЕ")
+    print("=" * 60)
     
     if dead_heroes:
-        print("💀 Погибшие в бою:")
+        print("\n💀 Погибшие в бою:")
         for hero in dead_heroes:
-            print(f"- {hero.name}")
+            print(f"   - {hero.name}")
     
-    print(f"🏆 Доступен этаж {new_floor}")
-    press_enter_to_continue()
-
-def show_defeat_screen(dead_heroes, retreat_floor):
-    """Показать экран поражения"""
-    display_tower_header("💥 ПОРАЖЕНИЕ")
-    print("💀 Погибшие:")
-    for hero in dead_heroes:
-        print(f"- {hero.name} (Ур. {hero.level})")
+    print(f"\n🔙 Отступление к этажу {current_floor}")
+    print("=" * 60)
     
-    print(f"🔙 Отступление к этажу {retreat_floor}")
-    press_enter_to_continue()
+    print("\nНажмите Enter чтобы вернуться в меню...")
+    input()
 
 def show_tower_progress(game_state, floor_info):
     """Показать прогресс башни с информацией о наградах"""

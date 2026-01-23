@@ -6,7 +6,7 @@ def view_party(game_state):
     """
     Просмотр информации о ТОЛЬКО ЖИВЫХ героях
     """
-    print_header("Ваши героев")
+    print_header("Ваши герои")
     
     # Фильтруем только живых героев
     living_heroes = [h for h in game_state["heroes"] if h.is_alive]
@@ -18,13 +18,13 @@ def view_party(game_state):
         return
     
     dormitory = game_state["buildings"].get_building("dormitory")
-    current_capacity = len(living_heroes)  # Используем только живых
+    current_capacity = len(living_heroes)
     max_capacity = dormitory.get_capacity()
     
     print(f"👥 Героев: {current_capacity}/{max_capacity}")
     print("=" * 50)
     
-    for i, hero in enumerate(living_heroes, 1):  # Используем living_heroes вместо game_state["heroes"]
+    for i, hero in enumerate(living_heroes, 1):
         star_display = VisualEffects.get_star_display(hero.star)
         
         # Получаем роль героя
@@ -57,9 +57,11 @@ def view_party(game_state):
         print(f"   📈 Опыт: {hero.experience}/{hero.exp_to_next_level}")
         print(f"   {exp_bar}")
         
-        # Показываем скрытые статы, если изучено "Понимание героев"
-        if game_state.get("hero_understanding") or game_state.get("flags", {}).get("hero_understanding"):
-            print(f"   {hero.get_hidden_stats(game_state)}")
+        # НОВЫЙ СПОСОБ ПРОВЕРКИ: Используем метод героя для получения характеристик
+        # Если герой может показать характеристики, покажем их
+        stats_string = hero.get_hidden_stats(game_state)
+        if "Характеристики скрыты" not in stats_string:
+            print(f"   {stats_string}")
         
         print("-" * 50)
     

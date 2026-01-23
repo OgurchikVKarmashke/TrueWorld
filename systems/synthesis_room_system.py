@@ -1,5 +1,4 @@
-# synthesis_room_system.py
-# systems.synthesis_room_system.py
+# systems/synthesis_room_system.py
 import random
 
 def get_available_heroes(heroes, base_hero, current_sacrifices):
@@ -34,7 +33,7 @@ def synthesize_heroes(game_state, base_hero, sacrifices):
     
     # Применяем опыт
     old_level = base_hero.level
-    result_message = base_hero.add_experience(total_exp)  # <-- Здесь вызывается add_experience
+    result_message = base_hero.add_experience(total_exp)
     
     # Убираем дублирование в сообщении об уровне
     if f"достиг {old_level + 1} уровня" in result_message:
@@ -42,9 +41,10 @@ def synthesize_heroes(game_state, base_hero, sacrifices):
     
     # Проверяем усиление характеристик
     stat_improved = False
+    stat_name = None
     if random.random() < stat_bonus_chance:
-        stat_improved = improve_random_stat(base_hero)
-        # Не добавляем сообщение здесь - оно будет показано в UI
+        stat_name = improve_random_stat(base_hero)
+        stat_improved = True
     
     # Удаляем жертвенных героев
     remove_sacrificed_heroes(game_state, sacrifices)
@@ -52,7 +52,14 @@ def synthesize_heroes(game_state, base_hero, sacrifices):
     # Очищаем группы от удаленных героев
     cleanup_party_system(game_state)
     
-    return result_message, stat_improved
+    # АВТОСОХРАНЕНИЕ: Сохраняем игру без уведомления игрока
+    if "save_system" in game_state:
+        try:
+            game_state["save_system"].save_game(game_state, 1)
+        except Exception:
+            pass  # Игнорируем ошибки сохранения, чтобы не прерывать процесс
+    
+    return result_message, stat_improved, stat_name
 
 def cleanup_party_system(game_state):
     """Очищает систему групп от удаленных героев"""
@@ -62,16 +69,21 @@ def cleanup_party_system(game_state):
         party_system.cleanup_dead_heroes()
 
 def improve_random_stat(hero):
-    """Улучшает случайную характеристику героя"""
-    stats = ['strength', 'dexterity', 'constitution', 'intelligence', 'wisdom', 'charisma']
+    """Улучшает случайную характеристику героя (ТОЛЬКО 4 основные)"""
+    # ТОЛЬКО 4 характеристики, без мудрости и харизмы
+    stats = ['strength', 'dexterity', 'constitution', 'intelligence']
     chosen_stat = random.choice(stats)
     current_value = getattr(hero, chosen_stat)
     setattr(hero, chosen_stat, current_value + 1)
     
+    # Пересчитываем производные характеристики (HP, MP, атака, защита)
+    hero.calculate_derived_stats(hero.level)
+    
     stat_names = {
-        'strength': 'Сила', 'dexterity': 'Ловкость', 
-        'constitution': 'Выносливость', 'intelligence': 'Интеллект',
-        'wisdom': 'Мудрость', 'charisma': 'Харизма'
+        'strength': 'Сила', 
+        'dexterity': 'Ловкость', 
+        'constitution': 'Выносливость', 
+        'intelligence': 'Интеллект'
     }
     
     return stat_names[chosen_stat]
