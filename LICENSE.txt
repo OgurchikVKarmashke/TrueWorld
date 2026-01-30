@@ -1,0 +1,49 @@
+End-User License Agreement (EULA) for TrueWorld
+
+Copyright (c) 2026 OgurchikVKarmashke. All rights reserved.
+
+1. Intellectual Property Rights
+   The game "TrueWorld", including its code, design, mechanics, content, and the executable file (.exe), is protected by copyright and is the intellectual property of OgurchikVKarmashke.
+
+2. Grant of License
+   The author grants you a free, non-exclusive, non-transferable license to download and run the TrueWorld.exe file on your personal computer for non-commercial, personal use only.
+
+3. Restrictions
+   You are NOT permitted to:
+   - Copy, redistribute, sell, rent, or commercially exploit the game or any part of it.
+   - Reverse engineer, decompile, disassemble, modify, or create derivative works based on the game or its executable file.
+   - Remove any copyright or proprietary notices from the game.
+
+4. Disclaimer of Warranty
+   The game is provided "AS IS" without any warranties, express or implied. The author is not responsible for any direct or indirect consequences arising from its use.
+
+5. Governing Law and Contact
+   This EULA is governed by the copyright laws of the Russian Federation.
+   For official inquiries regarding this software, please use the Issues section of the game's official GitHub repository.
+
+By downloading, installing, or using TrueWorld, you acknowledge that you have read and agree to be bound by the terms of this agreement.
+
+Лицензионное соглашение с конечным пользователем для TrueWorld
+
+Авторское право (c) 2026 OgurchikVKarmashke. Все права защищены.
+
+1. Права на интеллектуальную собственность
+   Игра "TrueWorld", включая её код, дизайн, механику, контент и исполняемый файл (.exe), защищена авторским правом и является интеллектуальной собственностью OgurchikVKarmashke.
+
+2. Предоставление лицензии
+   Автор предоставляет вам бесплатную, неисключительную, непередаваемую лицензию на загрузку и запуск файла TrueWorld.exe на вашем персональном компьютере только в некоммерческих, личных целях.
+
+3. Ограничения
+   Вам НЕ разрешается:
+   - Копировать, распространять, продавать, сдавать в аренду или иным образом извлекать коммерческую выгоду из игры или любой её части.
+   - Проводить реверс-инжиниринг, декомпилировать, разбирать на составляющие, модифицировать или создавать производные работы на основе игры или её исполняемого файла.
+   - Удалять какие-либо уведомления об авторских правах или правах собственности из игры.
+
+4. Отказ от гарантий
+   Игра предоставляется «КАК ЕСТЬ» без каких-либо гарантий, явных или подразумеваемых. Автор не несет ответственности за любые прямые или косвенные последствия, возникшие в результате её использования.
+
+5. Применимое право и связь
+   Настоящее соглашение регулируется законодательством Российской Федерации об авторском праве.
+   Для официальных запросов, касающихся данного программного обеспечения, пожалуйста, используйте раздел Issues (Проблемы) официального репозитория игры на GitHub.
+
+Загружая, устанавливая или используя TrueWorld, вы подтверждаете, что прочитали и соглашаетесь соблюдать условия настоящего соглашения.

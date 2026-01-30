@@ -1,0 +1,37 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
+*.swo
+config_secrets.py
+*.key
+.env
+secrets.json
+saves/
+INFO.txt
+
+# Исходный код Python
+*.py
+
+# Папки с модулями
+game_data/
+systems/
+ui/
+gui/
+
+# Служебные файлы проекта
+structure.txt
+requirements.txt
+app.py
+launcher.py
+main_gui.py
+TRUEWORLD.bat
+
+# Папки сборки и дистрибутива
+dist/
+build/
+*.spec
