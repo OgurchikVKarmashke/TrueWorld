@@ -2,48 +2,92 @@ End-User License Agreement (EULA) for TrueWorld
 
 Copyright (c) 2026 OgurchikVKarmashke. All rights reserved.
 
-1. Intellectual Property Rights
-   The game "TrueWorld", including its code, design, mechanics, content, and the executable file (.exe), is protected by copyright and is the intellectual property of OgurchikVKarmashke.
+Fan Project Disclaimer:
+TrueWorld is a non-commercial fan project created for educational and personal creative purposes. The game is heavily inspired by and is a personal interpretation of various game mechanics and systems found in popular media, including manhwa, novels, and games. All intellectual property rights for the original inspiring works belong to their respective copyright holders. This project is not affiliated with, endorsed by, or sponsored by any of these rights holders.
 
-2. Grant of License
-   The author grants you a free, non-exclusive, non-transferable license to download and run the TrueWorld.exe file on your personal computer for non-commercial, personal use only.
+1. Intellectual Property and Rights
+The game "TrueWorld", including its executable file (.exe), code, design, mechanics, content, as well as all protection and encryption methods applied to them, is the protected intellectual property of OgurchikVKarmashke.
 
-3. Restrictions
-   You are NOT permitted to:
-   - Copy, redistribute, sell, rent, or commercially exploit the game or any part of it.
-   - Reverse engineer, decompile, disassemble, modify, or create derivative works based on the game or its executable file.
-   - Remove any copyright or proprietary notices from the game.
+2. Grant of Limited License
+The Author grants you a free, revocable, non-exclusive, non-transferable license to download and run the TrueWorld.exe file on your personal computer solely for personal, non-commercial use.
 
-4. Disclaimer of Warranty
-   The game is provided "AS IS" without any warranties, express or implied. The author is not responsible for any direct or indirect consequences arising from its use.
+3. Strict Restrictions and Prohibitions
+You are STRICTLY PROHIBITED from:
+
+Copying, redistributing, selling, renting, transferring, or commercially exploiting the game or any part of it.
+
+Reverse engineering, decompiling, disassembling, decrypting, bypassing protection measures, modifying, or attempting to extract the source code or game data from the executable file.
+
+Creating any derivative works (mods, plugins, patches) based on the game.
+
+Removing, obscuring, or altering any copyright or proprietary notices.
+
+4. Disclaimer of Warranty and Support
+The game is provided "AS IS" and "AS AVAILABLE", without any warranties, express or implied. The Author:
+
+Shall not be held liable for any direct or indirect damage caused by the use or inability to use the game.
+
+Does not provide and is not obligated to provide technical support, updates, bug fixes, or further development of the project.
+
+Reserves the right to discontinue distribution of the game or revoke the license from any user at any time and without stating a reason.
 
 5. Governing Law and Contact
-   This EULA is governed by the copyright laws of the Russian Federation.
-   For official inquiries regarding this software, please use the Issues section of the game's official GitHub repository.
+This Agreement is governed by the copyright laws of the Russian Federation. Any disputes shall be subject to the jurisdiction of the courts at the rightsholder's (Author's) location.
+For any inquiries related to this software, please use the Issues section of the game's official GitHub repository.
 
-By downloading, installing, or using TrueWorld, you acknowledge that you have read and agree to be bound by the terms of this agreement.
+6. Agreement Acceptance
+By downloading, installing, launching, or using TrueWorld, you confirm that:
 
-Лицензионное соглашение с конечным пользователем для TrueWorld
+You are at least 16 years old (or have reached the age of digital consent in your jurisdiction).
+
+You have read, understood, and unconditionally agree to abide by all terms of this Agreement.
+
+You acknowledge the experimental nature of the project and the associated risks.
+
+---
+
+Лицензионное соглашение с конечным пользователем (EULA) для TrueWorld
 
 Авторское право (c) 2026 OgurchikVKarmashke. Все права защищены.
 
-1. Права на интеллектуальную собственность
-   Игра "TrueWorld", включая её код, дизайн, механику, контент и исполняемый файл (.exe), защищена авторским правом и является интеллектуальной собственностью OgurchikVKarmashke.
+Отказ от ответственности, как фан-проекта:
+TrueWorld — это некоммерческий фан-проект, созданный в образовательных и личных творческих целях. Игра создана под сильным влиянием и является личной интерпретацией различных игровых механик и систем, встречающихся в популярных произведениях, включая манхву, новеллы и игры. Все права на интеллектуальную собственность оригинальных произведений, вдохновивших проект, принадлежат их законным правообладателям. Данный проект не связан с ними, не одобрен и не спонсируется какими-либо из этих правообладателей.
 
-2. Предоставление лицензии
-   Автор предоставляет вам бесплатную, неисключительную, непередаваемую лицензию на загрузку и запуск файла TrueWorld.exe на вашем персональном компьютере только в некоммерческих, личных целях.
+1. Интеллектуальная собственность и права
+Игра "TrueWorld", включая её исполняемый файл (.exe), код, дизайн, механику, контент, а также все применённые методы защиты и шифрования, является защищённой интеллектуальной собственностью OgurchikVKarmashke.
 
-3. Ограничения
-   Вам НЕ разрешается:
-   - Копировать, распространять, продавать, сдавать в аренду или иным образом извлекать коммерческую выгоду из игры или любой её части.
-   - Проводить реверс-инжиниринг, декомпилировать, разбирать на составляющие, модифицировать или создавать производные работы на основе игры или её исполняемого файла.
-   - Удалять какие-либо уведомления об авторских правах или правах собственности из игры.
+2. Предоставление ограниченной лицензии
+Автор предоставляет вам бесплатную, отзывную, неисключительную, непередаваемую лицензию на загрузку и запуск файла TrueWorld.exe на вашем персональном компьютере исключительно для личного, некоммерческого использования.
 
-4. Отказ от гарантий
-   Игра предоставляется «КАК ЕСТЬ» без каких-либо гарантий, явных или подразумеваемых. Автор не несет ответственности за любые прямые или косвенные последствия, возникшие в результате её использования.
+3. Строгие ограничения и запреты
+Вам КАТЕГОРИЧЕСКИ ЗАПРЕЩАЕТСЯ:
+
+Копировать, распространять, продавать, сдавать в аренду, передавать или извлекать коммерческую выгоду из игры или любой её части.
+
+Проводить реверс-инжиниринг, декомпилировать, дизассемблировать, расшифровывать, обходить средства защиты, модифицировать или пытаться извлечь исходный код или игровые данные из исполняемого файла.
+
+Создавать любые производные работы (моды, плагины, патчи) на основе игры.
+
+Удалять, скрывать или изменять какие-либо уведомления об авторских правах или правах собственности.
+
+4. Отказ от гарантий и поддержки
+Игра предоставляется «КАК ЕСТЬ» и «В КАЧЕСТВЕ, В КОТОРОМ ОНА ДОСТУПНА», без каких-либо гарантий, явных или подразумеваемых. Автор:
+
+Не несёт ответственности за любой прямой или косвенный ущерб, вызванный использованием или невозможностью использования игры.
+
+Не предоставляет и не обязуется предоставлять техническую поддержку, обновления, исправления ошибок или дальнейшее развитие проекта.
+
+Оставляет за собой право прекратить распространение игры или отозвать лицензию у любого пользователя в любой момент и без объяснения причин.
 
 5. Применимое право и связь
-   Настоящее соглашение регулируется законодательством Российской Федерации об авторском праве.
-   Для официальных запросов, касающихся данного программного обеспечения, пожалуйста, используйте раздел Issues (Проблемы) официального репозитория игры на GitHub.
+Настоящее соглашение регулируется законодательством Российской Федерации об авторском праве. Все споры подлежат рассмотрению в судах по месту нахождения правообладателя (Автора).
+Для связи по вопросам, связанным с данным программным обеспечением, используйте раздел Issues (Проблемы) официального репозитория игры на GitHub.
 
-Загружая, устанавливая или используя TrueWorld, вы подтверждаете, что прочитали и соглашаетесь соблюдать условия настоящего соглашения.
+6. Принятие соглашения
+Загружая, устанавливая, запуская или используя TrueWorld, вы подтверждаете, что:
+
+Вам исполнилось 16 лет (или вы достигли возраста цифрового согласия в вашей юрисдикции).
+
+Вы прочитали, поняли и безоговорочно соглашаетесь соблюдать все условия настоящего Соглашения.
+
+Вы осознаёте экспериментальную природу проекта и связанные с этим риски.
